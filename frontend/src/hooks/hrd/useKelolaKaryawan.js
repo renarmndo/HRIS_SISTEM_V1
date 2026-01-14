@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  getKaryawan,
+  getUsers,
   updateKaryawan,
   deleteKaryawan,
 } from "../../services/hrd/addKaryawan";
@@ -15,9 +15,9 @@ export default function useKelolaKaryawan() {
     setLoading(true);
     setError(null);
     try {
-      const response = await getKaryawan();
+      const response = await getUsers();
       const data = response.data;
-      console.log("INI DATA KARYAWAN", data);
+      console.log("INI DATA USERS", data);
       setKaryawan(data);
     } catch (error) {
       setError(error.response.data.msg || "Terjadi kesalahan pada server");

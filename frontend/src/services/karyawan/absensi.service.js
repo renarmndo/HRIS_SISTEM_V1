@@ -26,3 +26,16 @@ export const useGetAbsensiMingguan = async () => {
   const response = await api.get("/karyawan/absen/total");
   return response.data;
 };
+
+// absensi bulanan dengan filter
+export const getAbsensiBulanan = async (bulan, tahun) => {
+  const params = new URLSearchParams();
+  if (bulan) params.append("bulan", bulan);
+  if (tahun) params.append("tahun", tahun);
+
+  const queryString = params.toString();
+  const response = await api.get(
+    `/karyawan/absen/bulanan${queryString ? `?${queryString}` : ""}`
+  );
+  return response.data;
+};

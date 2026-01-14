@@ -8,6 +8,15 @@ import AbsensiKaryawanModel from "./absensiModel.js";
 // HRD
 import LokasiKantorModel from "./lokasiKantor.model.js";
 
+// CUTI
+import KuotaCutiModel from "./kuotaCutiModel.js";
+import PengajuanCutiModel from "./pengajuanCutiModel.js";
+
+// PENGGAJIAN
+import KomponenGajiModel from "./komponenGaji.model.js";
+import SlipGajiModel from "./slipGaji.model.js";
+import DetailSlipGajiModel from "./detailSlipGaji.model.js";
+
 // relasi
 UsersModel.hasOne(KaryawanModel, {
   foreignKey: "user_id",
@@ -30,7 +39,7 @@ KaryawanFaceModel.belongsTo(KaryawanModel, {
   as: "karyawan",
 });
 
-// Relasi 1:N
+// Relasi 1:N Absensi
 KaryawanModel.hasMany(AbsensiKaryawanModel, {
   foreignKey: "karyawan_id",
   as: "absensi",
@@ -41,4 +50,51 @@ AbsensiKaryawanModel.belongsTo(KaryawanModel, {
   as: "karyawan",
 });
 
-export { UsersModel, KaryawanFaceModel, KaryawanModel };
+// Relasi 1:N Pengajuan Cuti
+KaryawanModel.hasMany(PengajuanCutiModel, {
+  foreignKey: "karyawan_id",
+  as: "pengajuan_cuti",
+});
+
+PengajuanCutiModel.belongsTo(KaryawanModel, {
+  foreignKey: "karyawan_id",
+  as: "karyawan",
+});
+
+// Relasi Slip Gaji
+KaryawanModel.hasMany(SlipGajiModel, {
+  foreignKey: "karyawan_id",
+  as: "slip_gaji",
+});
+
+SlipGajiModel.belongsTo(KaryawanModel, {
+  foreignKey: "karyawan_id",
+  as: "karyawan",
+});
+
+// Relasi Detail Slip Gaji
+SlipGajiModel.hasMany(DetailSlipGajiModel, {
+  foreignKey: "slip_gaji_id",
+  as: "details",
+});
+
+DetailSlipGajiModel.belongsTo(SlipGajiModel, {
+  foreignKey: "slip_gaji_id",
+  as: "slip_gaji",
+});
+
+DetailSlipGajiModel.belongsTo(KomponenGajiModel, {
+  foreignKey: "komponen_id",
+  as: "komponen",
+});
+
+export {
+  UsersModel,
+  KaryawanFaceModel,
+  KaryawanModel,
+  KuotaCutiModel,
+  PengajuanCutiModel,
+  KomponenGajiModel,
+  SlipGajiModel,
+  DetailSlipGajiModel,
+};

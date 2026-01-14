@@ -43,4 +43,12 @@ router.get(
   AbsensiController.getDetailAbsensiMingguan
 );
 
+// get absensi bulanan
+router.get(
+  "/karyawan/absen/bulanan",
+  authMiddleware,
+  roleMiddleware("karyawan"),
+  AbsensiController.getAbsensiBulanan
+);
+
 export default router;

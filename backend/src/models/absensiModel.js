@@ -90,6 +90,17 @@ AbsensiKaryawanModel.init(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    // Field untuk absensi manual oleh HRD
+    diabsen_oleh: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      comment: "User ID HRD yang mengabsenkan manual",
+    },
+    is_manual: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      comment: "True jika diabsen manual oleh HRD",
+    },
   },
   {
     sequelize,

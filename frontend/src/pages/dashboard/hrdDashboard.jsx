@@ -1,19 +1,98 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Search,
-  ChevronLeft,
-  ChevronRight,
   Users,
   FileText,
   Calendar as CalendarIcon,
   CheckCircle,
   XCircle,
-  Clock,
   MoreHorizontal,
   Bell,
+  Clock,
+  AlertCircle,
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  getDashboardStats,
+  getPengajuanCutiTerbaru,
+  quickUpdatePengajuanStatus,
+} from "../../services/hrd/dashboardService";
 
 const DashboardHRD = () => {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalKaryawan: 0,
+    pengajuanCutiPending: 0,
+    pengajuanIzinPending: 0,
+    absensiHariIni: {
+      totalHadir: 0,
+      persenKehadiran: 0,
+    },
+  });
+  const [pengajuanList, setPengajuanList] = useState([]);
+  const [processingId, setProcessingId] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [statsRes, pengajuanRes] = await Promise.all([
+        getDashboardStats(),
+        getPengajuanCutiTerbaru(),
+      ]);
+
+      setStats(statsRes.data);
+      setPengajuanList(pengajuanRes.data || []);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      // Don't show toast on initial load failure, just log it
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Handle approve/reject
+  const handleQuickAction = async (id, status) => {
+    setProcessingId(id);
+    try {
+      await quickUpdatePengajuanStatus(id, status);
+      toast.success(
+        `Pengajuan berhasil ${status === "disetujui" ? "disetujui" : "ditolak"}`
+      );
+      fetchData(); // Refresh data
+    } catch (error) {
+      toast.error(error.response?.data?.msg || "Gagal memproses pengajuan");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Format tanggal
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  // Format periode
+  const formatPeriode = (start, end) => {
+    if (!start || !end) return "-";
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    if (startDate.getTime() === endDate.getTime()) {
+      return formatDate(start);
+    }
+
+    return `${formatDate(start)} - ${formatDate(end)}`;
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-1 font-sans text-slate-800">
       {/* --- Header Section --- */}
@@ -38,7 +117,9 @@ const DashboardHRD = () => {
           {/* Notification Button */}
           <button className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 relative">
             <Bell className="w-5 h-5" />
-            <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+            {stats.pengajuanCutiPending > 0 && (
+              <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+            )}
           </button>
         </div>
       </div>
@@ -47,29 +128,29 @@ const DashboardHRD = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           title="Total Karyawan"
-          value="300"
-          subtext="Update Realtime"
+          value={loading ? "..." : stats.totalKaryawan}
+          subtext="Karyawan Aktif"
           icon={Users}
           color="bg-blue-500"
         />
         <StatCard
           title="Pengajuan Cuti"
-          value="12"
+          value={loading ? "..." : stats.pengajuanCutiPending}
           subtext="Perlu Persetujuan"
           icon={CalendarIcon}
           color="bg-amber-500"
         />
         <StatCard
-          title="Pengajuan Izin"
-          value="5"
-          subtext="Perlu Persetujuan"
+          title="Izin Hari Ini"
+          value={loading ? "..." : stats.absensiHariIni?.izin || 0}
+          subtext="Karyawan Izin"
           icon={FileText}
           color="bg-violet-500"
         />
         <StatCard
           title="Hadir Hari Ini"
-          value="285"
-          subtext="95% Kehadiran"
+          value={loading ? "..." : stats.absensiHariIni?.totalHadir || 0}
+          subtext={`${stats.absensiHariIni?.persenKehadiran || 0}% Kehadiran`}
           icon={CheckCircle}
           color="bg-emerald-500"
         />
@@ -89,7 +170,10 @@ const DashboardHRD = () => {
                   Daftar karyawan yang mengajukan ketidakhadiran
                 </p>
               </div>
-              <button className="text-sm font-medium text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 px-3 py-1.5 rounded-lg transition-colors">
+              <button
+                onClick={() => (window.location.href = "/hrd/leaves")}
+                className="text-sm font-medium text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 px-3 py-1.5 rounded-lg transition-colors"
+              >
                 Lihat Semua
               </button>
             </div>
@@ -107,51 +191,52 @@ const DashboardHRD = () => {
                   </tr>
                 </thead>
                 <tbody className="text-sm divide-y divide-slate-50">
-                  <RequestRow
-                    name="Kathy Pacheco"
-                    role="Full Stack Developer"
-                    img="https://i.pravatar.cc/150?u=1"
-                    type="Izin Sakit"
-                    date="2 Jul 2025"
-                    note="Demam tinggi"
-                    status="Menunggu"
-                  />
-                  <RequestRow
-                    name="Samanta Pacheco"
-                    role="Copywriter"
-                    img="https://i.pravatar.cc/150?u=2"
-                    type="Cuti Tahunan"
-                    date="10 - 15 Jul 2025"
-                    note="Liburan keluarga"
-                    status="Baru"
-                  />
-                  <RequestRow
-                    name="Budi Santoso"
-                    role="UI/UX Designer"
-                    img="https://i.pravatar.cc/150?u=3"
-                    type="Cuti Melahirkan"
-                    date="Agustus - Oktober"
-                    note="Istri melahirkan"
-                    status="Disetujui"
-                  />
-                  <RequestRow
-                    name="Rina Wijaya"
-                    role="Project Manager"
-                    img="https://i.pravatar.cc/150?u=4"
-                    type="Izin"
-                    date="5 Jul 2025"
-                    note="Urusan administrasi"
-                    status="Ditolak"
-                  />
-                  <RequestRow
-                    name="Alex Thompson"
-                    role="DevOps Engineer"
-                    img="https://i.pravatar.cc/150?u=5"
-                    type="Cuti Tahunan"
-                    date="20 - 25 Jul 2025"
-                    note="Pulang kampung"
-                    status="Baru"
-                  />
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan="6"
+                        className="py-8 text-center text-slate-400"
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-5 h-5 border-2 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
+                          Loading...
+                        </div>
+                      </td>
+                    </tr>
+                  ) : pengajuanList.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="6"
+                        className="py-8 text-center text-slate-400"
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <CalendarIcon className="w-10 h-10 text-slate-300" />
+                          <p>Tidak ada pengajuan cuti</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    pengajuanList.map((item) => (
+                      <RequestRow
+                        key={item.id}
+                        id={item.id}
+                        name={item.karyawan?.nama || "Unknown"}
+                        role={item.karyawan?.jabatan || "-"}
+                        type={item.jenis_cuti}
+                        date={formatPeriode(
+                          item.tanggal_mulai,
+                          item.tanggal_selesai
+                        )}
+                        note={item.alasan}
+                        status={item.status}
+                        onApprove={() =>
+                          handleQuickAction(item.id, "disetujui")
+                        }
+                        onReject={() => handleQuickAction(item.id, "ditolak")}
+                        isProcessing={processingId === item.id}
+                      />
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -177,26 +262,37 @@ const StatCard = ({ title, value, subtext, icon: Icon, color }) => (
   </div>
 );
 
-const RequestRow = ({ name, role, img, type, date, note, status }) => {
+const RequestRow = ({
+  id,
+  name,
+  role,
+  type,
+  date,
+  note,
+  status,
+  onApprove,
+  onReject,
+  isProcessing,
+}) => {
   let statusBadge;
   let actionButtons = false;
 
   switch (status) {
-    case "Disetujui":
+    case "disetujui":
       statusBadge = (
         <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-600">
           Disetujui
         </span>
       );
       break;
-    case "Ditolak":
+    case "ditolak":
       statusBadge = (
         <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600">
           Ditolak
         </span>
       );
       break;
-    default: // Baru / Menunggu
+    default: // pending
       statusBadge = (
         <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-600">
           Menunggu
@@ -205,45 +301,56 @@ const RequestRow = ({ name, role, img, type, date, note, status }) => {
       actionButtons = true;
   }
 
+  // Get initial for avatar
+  const initial = name?.charAt(0)?.toUpperCase() || "?";
+
   return (
     <tr className="hover:bg-slate-50/80 transition-colors group">
       <td className="py-4 pl-4">
         <div className="flex items-center gap-3">
-          <img
-            src={img}
-            alt={name}
-            className="w-10 h-10 rounded-full object-cover ring-2 ring-white shadow-sm"
-          />
+          <div className="w-10 h-10 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-700 font-bold">
+            {initial}
+          </div>
           <div>
             <p className="font-bold text-slate-800 text-sm">{name}</p>
             <p className="text-xs text-slate-500">{role}</p>
           </div>
         </div>
       </td>
-      <td className="py-4 text-sm font-medium text-slate-700">{type}</td>
+      <td className="py-4 text-sm font-medium text-slate-700 capitalize">
+        {type?.replace("_", " ") || "-"}
+      </td>
       <td className="py-4 text-sm text-slate-500">{date}</td>
       <td
         className="py-4 text-sm text-slate-500 max-w-[150px] truncate"
         title={note}
       >
-        {note}
+        {note || "-"}
       </td>
       <td className="py-4">{statusBadge}</td>
       <td className="py-4 pr-4 text-center">
         {actionButtons ? (
           <div className="flex justify-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-            <button
-              className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200"
-              title="Setujui"
-            >
-              <CheckCircle className="w-4 h-4" />
-            </button>
-            <button
-              className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
-              title="Tolak"
-            >
-              <XCircle className="w-4 h-4" />
-            </button>
+            {isProcessing ? (
+              <div className="w-5 h-5 border-2 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <>
+                <button
+                  onClick={onApprove}
+                  className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition-colors"
+                  title="Setujui"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={onReject}
+                  className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                  title="Tolak"
+                >
+                  <XCircle className="w-4 h-4" />
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <button className="text-slate-400 hover:text-slate-600">
@@ -254,23 +361,5 @@ const RequestRow = ({ name, role, img, type, date, note, status }) => {
     </tr>
   );
 };
-
-const ScheduleItem = ({ time, title, type, color }) => (
-  <div className="flex items-start gap-3 p-3 rounded-xl border border-slate-50 bg-slate-50 hover:bg-white hover:shadow-sm hover:border-slate-100 transition-all">
-    <div className="flex-1">
-      <div className="flex justify-between items-start">
-        <span className="text-xs font-bold text-slate-400 mb-1 block">
-          {time}
-        </span>
-        <span
-          className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${color}`}
-        >
-          {type}
-        </span>
-      </div>
-      <h4 className="text-sm font-bold text-slate-700">{title}</h4>
-    </div>
-  </div>
-);
 
 export default DashboardHRD;

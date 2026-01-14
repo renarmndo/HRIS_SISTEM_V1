@@ -1,9 +1,9 @@
 import { DataTypes, Model } from "sequelize";
 import sequelize from "../config/sequelize.js";
 
-export default class KaryawanModel extends Model {}
+export default class KomponenGajiModel extends Model {}
 
-KaryawanModel.init(
+KomponenGajiModel.init(
   {
     id: {
       type: DataTypes.UUID,
@@ -11,35 +11,27 @@ KaryawanModel.init(
       allowNull: false,
       primaryKey: true,
     },
-    user_id: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      unique: true,
-    },
-    nama_lengkap: {
+    nama: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    tanggal_masuk: {
-      type: DataTypes.DATE,
+    tipe: {
+      type: DataTypes.ENUM("bonus", "potongan"),
       allowNull: false,
     },
-    alamat: {
-      type: DataTypes.TEXT,
+    metode: {
+      type: DataTypes.ENUM("nominal", "persentase", "per_hari", "per_jam"),
       allowNull: false,
+      defaultValue: "nominal",
     },
-    departement: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    jabatan: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    gaji_pokok: {
+    nilai_default: {
       type: DataTypes.DECIMAL(15, 2),
-      allowNull: true,
+      allowNull: false,
       defaultValue: 0,
+    },
+    keterangan: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
     is_active: {
       type: DataTypes.BOOLEAN,
@@ -48,8 +40,8 @@ KaryawanModel.init(
   },
   {
     sequelize,
-    modelName: "karyawans",
-    tableName: "M_karyawan",
+    modelName: "komponen_gaji",
+    tableName: "m_komponen_gaji",
     timestamps: true,
   }
 );

@@ -20,8 +20,12 @@ import MasterDataAbsen from "./pages/karyawan/masterDataAbsenPage";
 
 // HRD
 import MasterKaryawan from "./pages/hrd/kelolaKaryawan";
+import DataKaryawan from "./pages/hrd/dataKaryawan";
 import LokasiKantorPage from "./pages/hrd/lokasiKantor";
 import KelolaAbsensiKaryawan from "./pages/hrd/kelolaAbsensi";
+import KelolaCutiPage from "./pages/hrd/kelolaCuti";
+import KelolaKomponenGaji from "./pages/hrd/kelolaKomponenGaji";
+import KelolaSlipGaji from "./pages/hrd/kelolaSlipGaji";
 
 function App() {
   return (
@@ -52,6 +56,18 @@ function App() {
             </MainLayout>
           }
         />
+
+        <Route
+          path="/hrd/karyawan"
+          element={
+            <MainLayout>
+              <ProtectedRoutes>
+                <DataKaryawan />
+              </ProtectedRoutes>
+            </MainLayout>
+          }
+        />
+
         <Route
           path="/hrd/lokasi"
           element={
@@ -69,6 +85,40 @@ function App() {
             <MainLayout>
               <ProtectedRoutes>
                 <KelolaAbsensiKaryawan />
+              </ProtectedRoutes>
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/hrd/leaves"
+          element={
+            <MainLayout>
+              <ProtectedRoutes>
+                <KelolaCutiPage />
+              </ProtectedRoutes>
+            </MainLayout>
+          }
+        />
+
+        {/* Penggajian HRD */}
+        <Route
+          path="/hrd/komponen-gaji"
+          element={
+            <MainLayout>
+              <ProtectedRoutes>
+                <KelolaKomponenGaji />
+              </ProtectedRoutes>
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/hrd/slip-gaji"
+          element={
+            <MainLayout>
+              <ProtectedRoutes>
+                <KelolaSlipGaji />
               </ProtectedRoutes>
             </MainLayout>
           }

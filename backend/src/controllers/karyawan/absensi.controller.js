@@ -613,4 +613,115 @@ export default class AbsensiController {
       });
     }
   }
+
+  // Get absensi bulanan dengan filter
+  static async getAbsensiBulanan(req, res) {
+    try {
+      const user_id = req.user.id;
+      const { bulan, tahun } = req.query;
+
+      // Default ke bulan dan tahun sekarang jika tidak ada parameter
+      const bulanTarget = bulan ? parseInt(bulan) : new Date().getMonth() + 1;
+      const tahunTarget = tahun ? parseInt(tahun) : new Date().getFullYear();
+
+      // Validasi bulan
+      if (bulanTarget < 1 || bulanTarget > 12) {
+        return res.status(400).json({
+          msg: "Bulan harus antara 1-12",
+        });
+      }
+
+      // Cari karyawan
+      const karyawan = await KaryawanModel.findOne({
+        where: { user_id: user_id },
+      });
+
+      if (!karyawan) {
+        return res.status(404).json({
+          msg: "Data karyawan tidak ditemukan",
+        });
+      }
+
+      // Hitung tanggal awal dan akhir bulan
+      const startOfMonth = new Date(tahunTarget, bulanTarget - 1, 1);
+      const endOfMonth = new Date(tahunTarget, bulanTarget, 0);
+
+      // Format tanggal untuk query
+      const startDate = startOfMonth.toISOString().split("T")[0];
+      const endDate = endOfMonth.toISOString().split("T")[0];
+
+      // Ambil data absensi bulan tersebut
+      const absensiList = await AbsensiKaryawanModel.findAll({
+        where: {
+          karyawan_id: karyawan.id,
+          tanggal: {
+            [Op.between]: [startDate, endDate],
+          },
+        },
+        order: [["tanggal", "ASC"]],
+      });
+
+      // Hitung statistik
+      let stats = {
+        totalHari: absensiList.length,
+        hadir: 0,
+        terlambat: 0,
+        cuti: 0,
+        izin: 0,
+        sakit: 0,
+        tidakHadir: 0,
+      };
+
+      absensiList.forEach((item) => {
+        switch (item.status) {
+          case "masuk":
+            stats.hadir++;
+            break;
+          case "terlambat":
+            stats.terlambat++;
+            break;
+          case "cuti":
+            stats.cuti++;
+            break;
+          case "izin":
+            stats.izin++;
+            break;
+          case "sakit":
+            stats.sakit++;
+            break;
+          case "tidak_hadir":
+            stats.tidakHadir++;
+            break;
+        }
+      });
+
+      // Format data untuk response
+      const data = absensiList.map((item) => ({
+        id: item.id,
+        tanggal: item.tanggal,
+        hari: moment(item.tanggal).format("dddd"),
+        jam_masuk: item.jam_masuk ? item.jam_masuk.slice(0, 5) : null,
+        jam_keluar: item.jam_keluar ? item.jam_keluar.slice(0, 5) : null,
+        status: item.status,
+        keterangan: item.keterangan,
+        menit_terlambat: item.menit_terlambat || 0,
+      }));
+
+      return res.status(200).json({
+        msg: "Berhasil mendapatkan data absensi bulanan",
+        data: {
+          bulan: bulanTarget,
+          tahun: tahunTarget,
+          stats: stats,
+          absensi: data,
+        },
+      });
+    } catch (error) {
+      console.error("Error getAbsensiBulanan:", error);
+      return res.status(500).json({
+        msg: "Terjadi kesalahan pada server",
+        error: error.message,
+      });
+    }
+  }
 }

@@ -16,6 +16,8 @@ import {
   ChevronRight,
   Presentation,
   FileTextIcon,
+  Settings2,
+  Receipt,
 } from "lucide-react";
 
 export default function SidebarComponents({ isOpen, onToggle }) {
@@ -40,6 +42,12 @@ export default function SidebarComponents({ isOpen, onToggle }) {
         path: "/hrd/users",
       },
       {
+        id: 21,
+        label: "Data Karyawan",
+        icon: UserCog,
+        path: "/hrd/karyawan",
+      },
+      {
         id: 3,
         label: "Lokasi Kantor",
         icon: MapPin,
@@ -53,9 +61,15 @@ export default function SidebarComponents({ isOpen, onToggle }) {
       },
       {
         id: 5,
-        label: "Penggajian",
+        label: "Kelola Gaji",
         icon: DollarSign,
-        path: "/hrd/salaries",
+        path: "/hrd/slip-gaji",
+      },
+      {
+        id: 51,
+        label: "Komponen Gaji",
+        icon: Settings2,
+        path: "/hrd/komponen-gaji",
       },
       {
         id: 6,
