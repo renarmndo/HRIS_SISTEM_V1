@@ -30,7 +30,15 @@ import KelolaSlipGaji from "./pages/hrd/kelolaSlipGaji";
 function App() {
   return (
     <>
-      <Toaster richColors position="top-right" />
+      <Toaster
+        richColors
+        position="top-right"
+        duration={4000}
+        closeButton
+        toastOptions={{
+          style: { maxWidth: "400px" },
+        }}
+      />
       <Routes>
         <Route path="/" element={<LoginPage />} />
 

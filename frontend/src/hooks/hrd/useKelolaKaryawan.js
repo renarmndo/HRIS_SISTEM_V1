@@ -34,19 +34,13 @@ export default function useKelolaKaryawan() {
     try {
       const response = await updateKaryawan(id, payload);
 
-      const updated = response.data;
-      // sesuaikan dengan struktur response API-mu
-
       toast.success("Data berhasil diupdate", {
         duration: 2000,
-        style: {
-          borderRadius: "10px",
-          background: "#4ade80",
-          color: "white",
-        },
+        id: "karyawan-update",
       });
 
-      setKaryawan(updated);
+      // Jangan set karyawan dengan response single object
+      // biarkan getKaryawanData() di component yang me-refresh list
     } catch (error) {
       console.log(error);
       setError(error.response?.data?.msg || "Terjadi kesalahan pada server");

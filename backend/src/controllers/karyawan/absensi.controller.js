@@ -7,6 +7,12 @@ import { lokasiDistance } from "../../utils/lokasiDistance.js";
 import { Op } from "sequelize";
 import moment from "moment";
 
+// Helper function untuk konversi waktu ke menit
+function timeToMinutes(timeStr) {
+  const [hours, minutes] = timeStr.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
 export default class AbsensiController {
   static async absensiMasuk(req, res) {
     try {
@@ -92,7 +98,7 @@ export default class AbsensiController {
         Number(latitude_masuk),
         Number(longitude_masuk),
         Number(lokasiKantor.latitude),
-        Number(lokasiKantor.longitude)
+        Number(lokasiKantor.longitude),
       );
 
       const radius = lokasiKantor.radius_absen_meter;
@@ -152,13 +158,13 @@ export default class AbsensiController {
       });
 
       return res.status(201).json({
-        msg: validasiLokasiMasuk
-          ? "Absensi Masuk Berhasil"
-          : "Absensi Masuk Berhasil (Diluar Radius Kantor)", // Tergantung kebijakan perusahaan Anda mau reject atau warn
+        msg: "Absensi Masuk Berhasil",
         data: {
           jam: jamAbsen,
           status: statusKehadiran,
-          jarak: jarak.toFixed(2),
+          jarak: parseFloat(jarak.toFixed(2)),
+          validasi_lokasi: validasiLokasiMasuk,
+          radius: radius,
         },
       });
     } catch (error) {
@@ -252,7 +258,7 @@ export default class AbsensiController {
         Number(latitude_keluar),
         Number(longitude_keluar),
         Number(lokasiKantor.latitude),
-        Number(lokasiKantor.longitude)
+        Number(lokasiKantor.longitude),
       );
 
       const radius = lokasiKantor.radius_absen_meter;
@@ -276,14 +282,14 @@ export default class AbsensiController {
         now.getMonth(),
         now.getDate(),
         jamMasuk,
-        menitMasuk
+        menitMasuk,
       );
       const dateKeluar = new Date(
         now.getFullYear(),
         now.getMonth(),
         now.getDate(),
         jamKeluarNow,
-        menitKeluarNow
+        menitKeluarNow,
       );
 
       const diffMs = dateKeluar - dateMasuk; // selisih dalam milidetik
@@ -306,14 +312,14 @@ export default class AbsensiController {
       await absensiHariIni.save(); // Simpan perubahan
 
       return res.status(200).json({
-        msg: validasiLokasiKeluar
-          ? "Absensi Keluar Berhasil"
-          : "Absensi Keluar Berhasil (Diluar Radius Kantor)",
+        msg: "Absensi Keluar Berhasil",
         data: {
           jam_masuk: absensiHariIni.jam_masuk,
           jam_keluar: jamKeluar,
           durasi_kerja: durasiKerja,
-          jarak: jarak.toFixed(2) + " Meter",
+          jarak: parseFloat(jarak.toFixed(2)),
+          validasi_lokasi: validasiLokasiKeluar,
+          radius: radius,
         },
       });
     } catch (error) {
@@ -419,7 +425,7 @@ export default class AbsensiController {
       if (stats.totalDays > 0) {
         // Rate = (Hadir / Total Absen Masuk) * 100
         stats.attendanceRate = Math.round(
-          ((stats.onTime + stats.late) / stats.totalDays) * 100
+          ((stats.onTime + stats.late) / stats.totalDays) * 100,
         );
       }
 
@@ -449,7 +455,7 @@ export default class AbsensiController {
             posisi: karyawan.jabatan,
             shift: `${lokasiKantor.jam_masuk?.slice(
               0,
-              5
+              5,
             )} - ${lokasiKantor.jam_keluar?.slice(0, 5)}`, // Ambil HH:MM
           },
           kantor: {
@@ -468,8 +474,8 @@ export default class AbsensiController {
               ? absenToday.status === "masuk"
                 ? "On Time"
                 : absenToday.status === "terlambat"
-                ? "Late"
-                : absenToday.status
+                  ? "Late"
+                  : absenToday.status
               : null,
             lateMinutes: lateMinutes,
           },

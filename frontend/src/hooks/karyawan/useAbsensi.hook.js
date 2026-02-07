@@ -21,40 +21,49 @@ export default function useAbsensiHook() {
 
     try {
       const response = await useAbsensiMasuk(data);
+      // Service sudah return response.data, jadi response = { msg, data }
+      const { validasi_lokasi, jarak, radius } = response.data;
 
-      setAbsensiMasuk(response.data);
+      setAbsensiMasuk(response);
 
-      // Tampilkan pesan sukses dari server atau default
-      toast.success(response.data.msg || "Absen Masuk Berhasil", {
-        duration: 2000,
-        style: {
-          background: "#4caf50",
-          color: "#fff",
-        },
-      });
+      // Toast berdasarkan status validasi lokasi - gunakan ID yang sama untuk semua
+      if (validasi_lokasi) {
+        // 🟢 HIJAU: Wajah cocok + Lokasi sesuai
+        toast.success(
+          `✓ Absen Masuk Berhasil\n📍 Lokasi terverifikasi (${jarak}m dari kantor)`,
+          { duration: 3000, id: "absen-masuk" },
+        );
+      } else {
+        // 🟡 KUNING: Wajah cocok + Lokasi di luar radius
+        toast.warning(
+          `⚠ Absen Masuk Berhasil\n📍 Anda berada di luar radius kantor (${jarak}m dari batas ${radius}m)`,
+          { duration: 4000, id: "absen-masuk" },
+        );
+      }
 
-      // PENTING: Return data agar bisa dipakai di component
       await fetchDataAbsensi();
-      return response.data;
+      return response;
     } catch (error) {
       console.error("Error Absensi:", error);
 
-      // 1. Ambil pesan spesifik dari backend (Controller)
-      // Controller Anda mengirim: res.status(400).json({ msg: "..." })
       const serverMessage =
         error.response?.data?.msg || "Terjadi kesalahan pada server";
       const validationDistance = error.response?.data?.distance
-        ? ` (Jarak Wajah: ${error.response.data.distance})`
+        ? ` (Jarak Wajah: ${error.response.data.distance.toFixed(3)})`
         : "";
 
       setAbsensiError(serverMessage);
 
-      // 2. Tampilkan Toast Error yang spesifik
-      toast.error(serverMessage + validationDistance, {
-        duration: 3000, // Sedikit lebih lama agar terbaca
-      });
+      // 🔴 MERAH: Hanya tampilkan toast untuk error verifikasi wajah
+      // Pesan "sudah absen" tidak ditampilkan karena seharusnya tidak terjadi
+      if (serverMessage.toLowerCase().includes("wajah")) {
+        toast.error(
+          `✗ Verifikasi Wajah Gagal\n${serverMessage}${validationDistance}`,
+          { duration: 4000, id: "absen-masuk" },
+        );
+      }
+      // Tidak ada else - pesan lain (seperti "sudah absen") tidak ditampilkan
 
-      // 3. PENTING: Lempar error kembali agar processAbsensi di AbsensiPage tahu ini gagal
       throw error;
     } finally {
       setAbsensiLoading(false);
@@ -67,40 +76,49 @@ export default function useAbsensiHook() {
 
     try {
       const response = await useAbsensiKeluar(data);
+      // Service sudah return response.data, jadi response = { msg, data }
+      const { validasi_lokasi, jarak, radius, durasi_kerja } = response.data;
 
-      setAbsensiMasuk(response.data);
+      setAbsensiMasuk(response);
 
-      // Tampilkan pesan sukses dari server atau default
-      toast.success(response.data.msg || "Absen Pulang Berhasil", {
-        duration: 2000,
-        style: {
-          background: "#4caf50",
-          color: "#fff",
-        },
-      });
+      // Toast berdasarkan status validasi lokasi - gunakan ID yang sama untuk semua
+      if (validasi_lokasi) {
+        // 🟢 HIJAU: Wajah cocok + Lokasi sesuai
+        toast.success(
+          `✓ Absen Keluar Berhasil\n📍 Lokasi terverifikasi\n⏱ Durasi kerja: ${durasi_kerja}`,
+          { duration: 3000, id: "absen-keluar" },
+        );
+      } else {
+        // 🟡 KUNING: Wajah cocok + Lokasi di luar radius
+        toast.warning(
+          `⚠ Absen Keluar Berhasil\n📍 Anda berada di luar radius kantor (${jarak}m dari batas ${radius}m)\n⏱ Durasi kerja: ${durasi_kerja}`,
+          { duration: 4000, id: "absen-keluar" },
+        );
+      }
 
-      // PENTING: Return data agar bisa dipakai di component
-      fetchDataAbsensi();
-      return response.data;
+      await fetchDataAbsensi();
+      return response;
     } catch (error) {
       console.error("Error Absensi:", error);
 
-      // 1. Ambil pesan spesifik dari backend (Controller)
-      // Controller Anda mengirim: res.status(400).json({ msg: "..." })
       const serverMessage =
         error.response?.data?.msg || "Terjadi kesalahan pada server";
       const validationDistance = error.response?.data?.distance
-        ? ` (Jarak Wajah: ${error.response.data.distance})`
+        ? ` (Jarak Wajah: ${error.response.data.distance.toFixed(3)})`
         : "";
 
       setAbsensiError(serverMessage);
 
-      // 2. Tampilkan Toast Error yang spesifik
-      toast.error(serverMessage + validationDistance, {
-        duration: 3000, // Sedikit lebih lama agar terbaca
-      });
+      // 🔴 MERAH: Hanya tampilkan toast untuk error verifikasi wajah
+      // Pesan "sudah absen" tidak ditampilkan karena seharusnya tidak terjadi
+      if (serverMessage.toLowerCase().includes("wajah")) {
+        toast.error(
+          `✗ Verifikasi Wajah Gagal\n${serverMessage}${validationDistance}`,
+          { duration: 4000, id: "absen-keluar" },
+        );
+      }
+      // Tidak ada else - pesan lain (seperti "sudah absen") tidak ditampilkan
 
-      // 3. PENTING: Lempar error kembali agar processAbsensi di AbsensiPage tahu ini gagal
       throw error;
     } finally {
       setAbsensiLoading(false);
@@ -118,7 +136,7 @@ export default function useAbsensiHook() {
       return response.data;
     } catch (error) {
       setAbsensiError(
-        error.response?.data?.msg || "Terjadi Kesalahan Pada Server"
+        error.response?.data?.msg || "Terjadi Kesalahan Pada Server",
       );
       throw error;
     } finally {
@@ -139,7 +157,7 @@ export default function useAbsensiHook() {
     } catch (error) {
       console.log(error);
       setAbsensiError(
-        error.response?.data?.msg || "Terjadi Kesalahan Pada Server"
+        error.response?.data?.msg || "Terjadi Kesalahan Pada Server",
       );
       throw error;
     } finally {
@@ -157,7 +175,7 @@ export default function useAbsensiHook() {
       return response.data;
     } catch (error) {
       setAbsensiError(
-        error.response?.data?.msg || "Terjadi Kesalahan Pada Server"
+        error.response?.data?.msg || "Terjadi Kesalahan Pada Server",
       );
     } finally {
       setAbsensiLoading(false);

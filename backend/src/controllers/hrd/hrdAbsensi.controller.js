@@ -187,12 +187,28 @@ export default class HrdAbsensiController {
         });
       }
 
+      // PERBAIKAN: Untuk status tidak_hadir, izin, sakit, cuti - paksa jam_masuk dan jam_keluar jadi null
+      // Ini penting agar tidak ada potongan gaji dan data konsisten
+      const statusWithoutTime = [
+        "tidak_hadir",
+        "izin",
+        "sakit",
+        "cuti",
+        "libur",
+      ];
+      const finalJamMasuk = statusWithoutTime.includes(status)
+        ? null
+        : jam_masuk || null;
+      const finalJamKeluar = statusWithoutTime.includes(status)
+        ? null
+        : jam_keluar || null;
+
       // Buat absensi manual
       const absensi = await AbsensiKaryawanModel.create({
         karyawan_id,
         tanggal,
-        jam_masuk: jam_masuk || null,
-        jam_keluar: jam_keluar || null,
+        jam_masuk: finalJamMasuk,
+        jam_keluar: finalJamKeluar,
         status,
         keterangan: keterangan || `Diabsen manual oleh HRD`,
         is_manual: true,
@@ -233,8 +249,28 @@ export default class HrdAbsensiController {
 
       // Update data
       const updateData = {};
-      if (jam_masuk !== undefined) updateData.jam_masuk = jam_masuk;
-      if (jam_keluar !== undefined) updateData.jam_keluar = jam_keluar;
+
+      // PERBAIKAN: Validasi status untuk memastikan konsistensi jam
+      const statusWithoutTime = [
+        "tidak_hadir",
+        "izin",
+        "sakit",
+        "cuti",
+        "libur",
+      ];
+      const newStatus = status !== undefined ? status : absensi.status;
+
+      if (statusWithoutTime.includes(newStatus)) {
+        // Paksa jam jadi null untuk status tanpa kehadiran
+        updateData.jam_masuk = null;
+        updateData.jam_keluar = null;
+      } else {
+        // Hanya update jam jika ada perubahan
+        if (jam_masuk !== undefined) updateData.jam_masuk = jam_masuk || null;
+        if (jam_keluar !== undefined)
+          updateData.jam_keluar = jam_keluar || null;
+      }
+
       if (status !== undefined) updateData.status = status;
       if (keterangan !== undefined) updateData.keterangan = keterangan;
 

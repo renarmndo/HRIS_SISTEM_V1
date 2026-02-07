@@ -1,11 +1,34 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useAbsensiHook from "../../hooks/karyawan/useAbsensi.hook";
+import { getKaryawanAnalytics } from "../../services/karyawan/dashboardAnalytics.service";
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import {
+  TrendingUp,
+  Calendar,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 
 export default function KaryawanDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [attendanceStatus, setAttendanceStatus] = useState(null);
-  const [leaveBalance] = useState(12);
+  const [analytics, setAnalytics] = useState(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
   const navigate = useNavigate();
 
   const {
@@ -26,82 +49,20 @@ export default function KaryawanDashboard() {
 
   useEffect(() => {
     fetchDataAbsensiMungguan();
+    fetchDataAbsensi();
+    loadAnalytics();
   }, []);
 
-  const monthlyAttendance = [
-    {
-      no: 1,
-      date: "1 Des",
-      day: "Senin",
-      timeIn: "08:15",
-      timeOut: "17:00",
-      status: "Masuk",
-      note: "Tepat waktu",
-    },
-    {
-      no: 2,
-      date: "2 Des",
-      day: "Selasa",
-      timeIn: "08:35",
-      timeOut: "17:05",
-      status: "Telat",
-      note: "Terlambat 5 menit",
-    },
-    {
-      no: 3,
-      date: "3 Des",
-      day: "Rabu",
-      timeIn: "08:10",
-      timeOut: "17:00",
-      status: "Masuk",
-      note: "Tepat waktu",
-    },
-    {
-      no: 4,
-      date: "4 Des",
-      day: "Kamis",
-      timeIn: "08:20",
-      timeOut: "17:00",
-      status: "Masuk",
-      note: "Tepat waktu",
-    },
-    {
-      no: 5,
-      date: "5 Des",
-      day: "Jumat",
-      timeIn: "-",
-      timeOut: "-",
-      status: "Cuti",
-      note: "Cuti tahunan",
-    },
-    {
-      no: 6,
-      date: "6 Des",
-      day: "Sabtu",
-      timeIn: "-",
-      timeOut: "-",
-      status: "Libur",
-      note: "Akhir pekan",
-    },
-    {
-      no: 7,
-      date: "9 Des",
-      day: "Senin",
-      timeIn: "08:18",
-      timeOut: "17:00",
-      status: "Masuk",
-      note: "Tepat waktu",
-    },
-    {
-      no: 8,
-      date: "10 Des",
-      day: "Selasa",
-      timeIn: "08:45",
-      timeOut: "17:10",
-      status: "Telat",
-      note: "Terlambat 15 menit",
-    },
-  ];
+  const loadAnalytics = async () => {
+    try {
+      const response = await getKaryawanAnalytics();
+      setAnalytics(response.data);
+    } catch (error) {
+      console.error("Error loading analytics:", error);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
 
   const handleClockIn = () => {
     navigate("/karyawan/absensi");
@@ -124,10 +85,6 @@ export default function KaryawanDashboard() {
     });
   };
 
-  useEffect(() => {
-    fetchDataAbsensi();
-  }, []);
-
   const hariMap = {
     Monday: "Senin",
     Tuesday: "Selasa",
@@ -136,6 +93,33 @@ export default function KaryawanDashboard() {
     Friday: "Jumat",
     Saturday: "Sabtu",
     Sunday: "Minggu",
+  };
+
+  // Custom label untuk pie chart
+  const renderCustomLabel = ({
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    percent,
+  }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+    const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        className="text-xs font-bold"
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
   };
 
   return (
@@ -152,7 +136,7 @@ export default function KaryawanDashboard() {
         {/* Top Section - Absensi & Stats */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Card Absensi */}
-          <div className="bg-gradient-to-br from-[#00B4DD] to-[#00B4DD] rounded-2xl shadow-xl p-8 text-white">
+          <div className="bg-gradient-to-br from-[#00B4DD] to-[#0099cc] rounded-2xl shadow-xl p-8 text-white">
             <p className="text-sm opacity-90 mb-2">Waktu Saat Ini</p>
             <div className="text-5xl font-bold mb-6">
               {formatTime(currentTime)}
@@ -184,36 +168,126 @@ export default function KaryawanDashboard() {
           {/* Stats Cards */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-emerald-500">
-              <p className="text-sm text-gray-600 mb-1">Tepat Waktu</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600">Tepat Waktu</p>
+                <CheckCircle2 size={20} className="text-emerald-500" />
+              </div>
               <p className="text-4xl font-bold text-gray-800">
-                {absensiMasuk?.mingguIni?.onTime}
+                {absensiMasuk?.mingguIni?.onTime || 0}
               </p>
-              <p className="text-xs text-gray-500 mt-1">hari tersedia</p>
+              <p className="text-xs text-gray-500 mt-1">hari minggu ini</p>
             </div>
 
             <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500">
-              <p className="text-sm text-gray-600 mb-1">Kehadiran</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600">Kehadiran</p>
+                <Calendar size={20} className="text-blue-500" />
+              </div>
               <p className="text-4xl font-bold text-gray-800">
-                {absensiMasuk?.mingguIni?.totalDays}
+                {absensiMasuk?.mingguIni?.totalDays || 0}
               </p>
-              <p className="text-xs text-gray-500 mt-1">hari bulan ini</p>
+              <p className="text-xs text-gray-500 mt-1">hari minggu ini</p>
             </div>
 
             <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-orange-500">
-              <p className="text-sm text-gray-600 mb-1">Keterlambatan</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600">Keterlambatan</p>
+                <Clock size={20} className="text-orange-500" />
+              </div>
               <p className="text-4xl font-bold text-gray-800">
-                {absensiMasuk?.mingguIni?.late}
+                {absensiMasuk?.mingguIni?.late || 0}
               </p>
-              <p className="text-xs text-gray-500 mt-1">kali bulan ini</p>
+              <p className="text-xs text-gray-500 mt-1">kali minggu ini</p>
             </div>
 
             <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
-              <p className="text-sm text-gray-600 mb-1">Total Cuti</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600">Total Cuti</p>
+                <XCircle size={20} className="text-purple-500" />
+              </div>
               <p className="text-4xl font-bold text-gray-800">0</p>
               <p className="text-xs text-gray-500 mt-1">hari terpakai</p>
             </div>
           </div>
         </div>
+
+        {/* Analytics Charts */}
+        {!loadingAnalytics && analytics && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Tren Kehadiran Mingguan */}
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="text-[#00B4DD]" size={24} />
+                <h3 className="text-xl font-semibold text-gray-800">
+                  Tren Kehadiran 7 Hari Terakhir
+                </h3>
+              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={analytics.weeklyTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                  <YAxis />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Legend />
+                  <Bar
+                    dataKey="hadir"
+                    fill="#10b981"
+                    name="Hadir"
+                    radius={[8, 8, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="terlambat"
+                    fill="#f59e0b"
+                    name="Terlambat"
+                    radius={[8, 8, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Breakdown Kehadiran */}
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertCircle className="text-[#00B4DD]" size={24} />
+                <h3 className="text-xl font-semibold text-gray-800">
+                  Distribusi Kehadiran Bulan Ini
+                </h3>
+              </div>
+              {analytics.attendanceBreakdown.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={analytics.attendanceBreakdown}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={renderCustomLabel}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {analytics.attendanceBreakdown.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-gray-400">
+                  Belum ada data kehadiran bulan ini
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Tabel Riwayat Absensi */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -285,10 +359,10 @@ export default function KaryawanDashboard() {
                           record.status === "Masuk"
                             ? "bg-emerald-100 text-emerald-700"
                             : record.status === "terlambat"
-                            ? "bg-orange-100 text-orange-700"
-                            : record.status === "Cuti"
-                            ? "bg-purple-100 text-purple-700"
-                            : "bg-gray-200 text-gray-700"
+                              ? "bg-orange-100 text-orange-700"
+                              : record.status === "Cuti"
+                                ? "bg-purple-100 text-purple-700"
+                                : "bg-gray-200 text-gray-700"
                         }`}
                       >
                         {record.status}
@@ -305,10 +379,12 @@ export default function KaryawanDashboard() {
 
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
             <p className="text-sm text-gray-600">
-              Menampilkan {monthlyAttendance.length} dari{" "}
-              {monthlyAttendance.length} data
+              Menampilkan {absensiMingguan.length} data minggu ini
             </p>
-            <button className="text-sm text-teal-600 hover:text-teal-800 font-semibold transition-colors">
+            <button
+              onClick={() => navigate("/karyawan/data-absen")}
+              className="text-sm text-teal-600 hover:text-teal-800 font-semibold transition-colors"
+            >
               Lihat Semua Riwayat →
             </button>
           </div>

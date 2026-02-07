@@ -10,13 +10,29 @@ import {
   Bell,
   Clock,
   AlertCircle,
+  TrendingUp,
+  PieChartIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   getDashboardStats,
   getPengajuanCutiTerbaru,
   quickUpdatePengajuanStatus,
+  getHrdAnalytics,
 } from "../../services/hrd/dashboardService";
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 const DashboardHRD = () => {
   const [loading, setLoading] = useState(true);
@@ -31,6 +47,8 @@ const DashboardHRD = () => {
   });
   const [pengajuanList, setPengajuanList] = useState([]);
   const [processingId, setProcessingId] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -44,25 +62,35 @@ const DashboardHRD = () => {
       setPengajuanList(pengajuanRes.data || []);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
-      // Don't show toast on initial load failure, just log it
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const loadAnalytics = useCallback(async () => {
+    try {
+      const response = await getHrdAnalytics();
+      setAnalytics(response.data);
+    } catch (error) {
+      console.error("Error loading analytics:", error);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    loadAnalytics();
+  }, [fetchData, loadAnalytics]);
 
-  // Handle approve/reject
   const handleQuickAction = async (id, status) => {
     setProcessingId(id);
     try {
       await quickUpdatePengajuanStatus(id, status);
       toast.success(
-        `Pengajuan berhasil ${status === "disetujui" ? "disetujui" : "ditolak"}`
+        `Pengajuan berhasil ${status === "disetujui" ? "disetujui" : "ditolak"}`,
       );
-      fetchData(); // Refresh data
+      fetchData();
     } catch (error) {
       toast.error(error.response?.data?.msg || "Gagal memproses pengajuan");
     } finally {
@@ -70,7 +98,6 @@ const DashboardHRD = () => {
     }
   };
 
-  // Format tanggal
   const formatDate = (dateStr) => {
     if (!dateStr) return "-";
     return new Date(dateStr).toLocaleDateString("id-ID", {
@@ -80,7 +107,6 @@ const DashboardHRD = () => {
     });
   };
 
-  // Format periode
   const formatPeriode = (start, end) => {
     if (!start || !end) return "-";
     const startDate = new Date(start);
@@ -93,6 +119,35 @@ const DashboardHRD = () => {
     return `${formatDate(start)} - ${formatDate(end)}`;
   };
 
+  // Custom colors untuk charts
+  const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+
+  const renderCustomLabel = ({
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    percent,
+  }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+    const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        className="text-xs font-bold"
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-1 font-sans text-slate-800">
       {/* --- Header Section --- */}
@@ -100,7 +155,7 @@ const DashboardHRD = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Dashboard HRD</h1>
           <p className="text-sm text-slate-500">
-            Ringkasan data karyawan dan persetujuan cuti
+            Ringkasan data karyawan dan analitik kehadiran
           </p>
         </div>
 
@@ -155,6 +210,93 @@ const DashboardHRD = () => {
           color="bg-emerald-500"
         />
       </div>
+
+      {/* Analytics Charts */}
+      {!loadingAnalytics && analytics && (
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+          {/* Breakdown Departemen */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <div className="flex items-center gap-2 mb-4">
+              <PieChartIcon className="text-cyan-600" size={24} />
+              <h3 className="text-lg font-bold text-slate-800">
+                Karyawan per Departemen
+              </h3>
+            </div>
+            {analytics.departmentBreakdown.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={analytics.departmentBreakdown}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={renderCustomLabel}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {analytics.departmentBreakdown.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center text-slate-400">
+                Tidak ada data
+              </div>
+            )}
+          </div>
+
+          {/* Tren Kehadiran Mingguan */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 xl:col-span-2">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="text-cyan-600" size={24} />
+              <h3 className="text-lg font-bold text-slate-800">
+                Tren Kehadiran 7 Hari Terakhir
+              </h3>
+            </div>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={analytics.weeklyTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                <YAxis />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#fff",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Legend />
+                <Bar
+                  dataKey="hadir"
+                  fill="#10b981"
+                  name="Hadir"
+                  radius={[8, 8, 0, 0]}
+                />
+                <Bar
+                  dataKey="terlambat"
+                  fill="#f59e0b"
+                  name="Terlambat"
+                  radius={[8, 8, 0, 0]}
+                />
+                <Bar
+                  dataKey="tidak_hadir"
+                  fill="#ef4444"
+                  name="Tidak Hadir"
+                  radius={[8, 8, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* --- Main Content Grid --- */}
       <div className="grid grid-cols-1 xl:grid-cols-1 gap-8">
@@ -225,7 +367,7 @@ const DashboardHRD = () => {
                         type={item.jenis_cuti}
                         date={formatPeriode(
                           item.tanggal_mulai,
-                          item.tanggal_selesai
+                          item.tanggal_selesai,
                         )}
                         note={item.alasan}
                         status={item.status}
@@ -301,7 +443,6 @@ const RequestRow = ({
       actionButtons = true;
   }
 
-  // Get initial for avatar
   const initial = name?.charAt(0)?.toUpperCase() || "?";
 
   return (

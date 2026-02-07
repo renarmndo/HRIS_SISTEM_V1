@@ -39,6 +39,8 @@ const AbsensiPage = () => {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
+  const isProcessingRef = useRef(false); // Ref untuk tracking processing state (menghindari stale closure)
+  const absensiTypeRef = useRef(null); // 'masuk' atau 'keluar' - untuk tracking jenis absensi yang dimulai
 
   // --- CUSTOM HOOKS ---
   const {
@@ -58,11 +60,61 @@ const AbsensiPage = () => {
     detectFace,
   } = useFaceAPI();
 
-  const employeeData = {
-    name: "Dimas Adiputra",
-    isInRadius: true,
-    todayCheckOut: null,
+  // --- HELPER: Haversine Distance Calculator ---
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371000; // radius bumi dalam meter
+    const toRad = (x) => (x * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // jarak dalam meter
   };
+
+  // --- COMPUTED: Location Status (Real-time) ---
+  const locationStatus = React.useMemo(() => {
+    // Jika GPS belum aktif
+    if (!currentLocation.lat || !currentLocation.long) {
+      return {
+        isInRadius: false,
+        distance: 0,
+        message: "GPS tidak aktif",
+        color: "red",
+      };
+    }
+
+    // Jika data kantor sudah tersedia
+    if (absensiMasuk?.kantor) {
+      const { latitude, longitude, radius } = absensiMasuk.kantor;
+      const distance = calculateDistance(
+        currentLocation.lat,
+        currentLocation.long,
+        latitude,
+        longitude,
+      );
+      const isInRadius = distance <= radius;
+
+      return {
+        isInRadius,
+        distance: Math.round(distance),
+        radius,
+        message: isInRadius
+          ? "Dalam radius kantor"
+          : `Di luar radius (${Math.round(distance)}m dari batas ${radius}m)`,
+        color: isInRadius ? "green" : "amber",
+      };
+    }
+
+    // Default: lokasi terdeteksi tapi data kantor belum ada
+    return {
+      isInRadius: true,
+      distance: 0,
+      message: "Menunggu data kantor...",
+      color: "gray",
+    };
+  }, [currentLocation, absensiMasuk]);
 
   // --- USE EFFECTS ---
 
@@ -101,7 +153,7 @@ const AbsensiPage = () => {
         (error) => {
           console.error("Error location:", error);
           setLocationError("Gagal mengambil lokasi. Pastikan GPS aktif.");
-        }
+        },
       );
     } else {
       setLocationError("Browser tidak mendukung Geolocation.");
@@ -179,6 +231,7 @@ const AbsensiPage = () => {
 
   const stopCamera = () => {
     if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+    scanIntervalRef.current = null;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -187,6 +240,7 @@ const AbsensiPage = () => {
     setIsDetecting(false);
     setIsVideoReady(false);
     setIsProcessing(false);
+    isProcessingRef.current = false; // Reset ref juga
   };
 
   const startScanningFace = () => {
@@ -199,11 +253,13 @@ const AbsensiPage = () => {
     scanIntervalRef.current = setInterval(async () => {
       attempts++;
 
+      // Gunakan ref untuk check real-time (menghindari stale closure)
       if (
         !videoRef.current ||
         videoRef.current.paused ||
         videoRef.current.ended ||
-        !modelLoaded
+        !modelLoaded ||
+        isProcessingRef.current // Gunakan ref, bukan state
       ) {
         return;
       }
@@ -213,8 +269,12 @@ const AbsensiPage = () => {
         const result = await detectFace(videoRef.current);
 
         if (result && result.descriptor) {
-          // WAJAH DITEMUKAN -> STOP SCAN & KIRIM DATA
+          // WAJAH DITEMUKAN -> STOP & BLOCK SEGERA
+          isProcessingRef.current = true; // Block dulu dengan ref
           clearInterval(scanIntervalRef.current);
+          scanIntervalRef.current = null;
+          setIsProcessing(true);
+          setIsDetecting(false);
 
           await processAbsensi(result.descriptor);
         } else if (attempts >= maxAttempts) {
@@ -240,6 +300,8 @@ const AbsensiPage = () => {
     try {
       // Panggil Hook API Absen Masuk
       await handleAbsensiMasuk(payload);
+      // Refresh data absensi hari ini agar jam langsung terupdate
+      await fetchDataAbsensiHariIni();
       stopCamera();
     } catch (error) {
       console.error("Gagal Absen:", error);
@@ -258,11 +320,13 @@ const AbsensiPage = () => {
     scanIntervalRef.current = setInterval(async () => {
       attempts++;
 
+      // Gunakan ref untuk check real-time (menghindari stale closure)
       if (
         !videoRef.current ||
         videoRef.current.paused ||
         videoRef.current.ended ||
-        !modelLoaded
+        !modelLoaded ||
+        isProcessingRef.current // Gunakan ref, bukan state
       ) {
         return;
       }
@@ -272,8 +336,12 @@ const AbsensiPage = () => {
         const result = await detectFace(videoRef.current);
 
         if (result && result.descriptor) {
-          // WAJAH DITEMUKAN -> STOP SCAN & KIRIM DATA
+          // WAJAH DITEMUKAN -> STOP & BLOCK SEGERA
+          isProcessingRef.current = true; // Block dulu dengan ref
           clearInterval(scanIntervalRef.current);
+          scanIntervalRef.current = null;
+          setIsProcessing(true);
+          setIsDetecting(false);
 
           await absensiKeluar(result.descriptor);
         } else if (attempts >= maxAttempts) {
@@ -288,38 +356,49 @@ const AbsensiPage = () => {
   };
 
   const absensiKeluar = async (faceDescriptor) => {
+    // Guard: Jika sudah dalam proses, jangan eksekusi lagi
+    if (isProcessingRef.current && isProcessing) {
+      console.log("⚠️ absensiKeluar sudah berjalan, skip duplicate call");
+      return;
+    }
+
+    isProcessingRef.current = true;
     setIsProcessing(true);
+
     const payload = {
-      face_embedding_keluar: Array.from(faceDescriptor), // Konversi Float32Array ke Array biasa
+      face_embedding_keluar: Array.from(faceDescriptor),
       latitude_keluar: currentLocation.lat,
       longitude_keluar: currentLocation.long,
     };
 
     try {
       await handleAbsensiKeluar(payload);
+      // Refresh data absensi hari ini agar jam langsung terupdate
+      await fetchDataAbsensiHariIni();
       stopCamera();
     } catch (error) {
       console.log(error);
-      setIsProcessing(false);
       stopCamera();
     }
   };
 
   // --- UI HANDLERS ---
   const handleKlikAbsenMasuk = () => {
-    if (!employeeData.isInRadius && locationError) {
-      toast.error("Anda berada di luar jangkauan atau GPS mati.");
+    // Tetap bisa absen meski di luar radius, hanya cek GPS
+    if (locationError) {
+      toast.error("GPS tidak aktif. Silakan aktifkan GPS terlebih dahulu.");
       return;
     }
     startCamera();
   };
 
   const handleKlikAbsenKeluar = () => {
-    if (!employeeData.isInRadius && locationError) {
-      toast.error("Anda Berada diluar jangkauan atau GPS tidak diaktifkan");
+    // Tetap bisa absen meski di luar radius, hanya cek GPS
+    if (locationError) {
+      toast.error("GPS tidak aktif. Silakan aktifkan GPS terlebih dahulu.");
       return;
     }
-    startCameraKeluar(); // Perbaikan: memanggil startCameraKeluar
+    startCameraKeluar();
   };
 
   useEffect(() => {
@@ -378,7 +457,7 @@ const AbsensiPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-1">
@@ -420,8 +499,8 @@ const AbsensiPage = () => {
 
               <div className="p-5">
                 {/* Camera Preview Area */}
-                <div className="mb-4">
-                  <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video max-w-full mx-auto shadow-inner ring-1 ring-gray-200">
+                <div className="mb-4 flex justify-center">
+                  <div className="relative bg-gray-900 rounded-lg overflow-hidden w-full max-w-md h-72 shadow-inner ring-1 ring-gray-200">
                     {/* KONDISI 1: KAMERA MATI (Placeholder) */}
                     {!isCameraActive && (
                       <div className="absolute inset-0 bg-gray-800 flex flex-col items-center justify-center">
@@ -471,19 +550,19 @@ const AbsensiPage = () => {
                           isDetecting
                             ? "bg-green-500 animate-pulse"
                             : isCameraActive
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
+                              ? "bg-yellow-500"
+                              : "bg-red-500"
                         }`}
                       ></div>
                       {isDetecting
                         ? "Memindai Wajah..."
                         : isProcessing
-                        ? "Mengirim Data..."
-                        : backendLoading
-                        ? "Mengirim Data..."
-                        : isCameraActive
-                        ? "Mencari Wajah"
-                        : "Kamera Off"}
+                          ? "Mengirim Data..."
+                          : backendLoading
+                            ? "Mengirim Data..."
+                            : isCameraActive
+                              ? "Mencari Wajah"
+                              : "Kamera Off"}
                     </div>
 
                     {/* Time Display Overlay */}
@@ -501,17 +580,21 @@ const AbsensiPage = () => {
                 <div className="mb-4">
                   <div
                     className={`flex items-center justify-between p-4 rounded-xl border ${
-                      employeeData.isInRadius
+                      locationStatus.color === "green"
                         ? "border-green-200 bg-green-50"
-                        : "border-red-200 bg-red-50"
+                        : locationStatus.color === "amber"
+                          ? "border-amber-200 bg-amber-50"
+                          : "border-red-200 bg-red-50"
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`p-2.5 rounded-xl ${
-                          employeeData.isInRadius
-                            ? "bg-white text-green-600"
-                            : "bg-white text-red-500"
+                        className={`p-2.5 rounded-xl bg-white ${
+                          locationStatus.color === "green"
+                            ? "text-green-600"
+                            : locationStatus.color === "amber"
+                              ? "text-amber-600"
+                              : "text-red-500"
                         }`}
                       >
                         <MapPin size={20} />
@@ -520,15 +603,23 @@ const AbsensiPage = () => {
                         <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-0.5">
                           Status Lokasi
                         </p>
-                        <p className="text-sm font-semibold text-gray-700">
-                          {employeeData.isInRadius
-                            ? "✓ Kantor Pusat"
-                            : "✗ Di Luar Jangkauan"}
+                        <p
+                          className={`text-sm font-semibold ${
+                            locationStatus.color === "green"
+                              ? "text-green-700"
+                              : locationStatus.color === "amber"
+                                ? "text-amber-700"
+                                : "text-red-600"
+                          }`}
+                        >
+                          {locationStatus.isInRadius
+                            ? "✓ Dalam Radius Kantor"
+                            : locationStatus.color === "amber"
+                              ? "⚠ Di Luar Radius"
+                              : "✗ GPS Tidak Aktif"}
                         </p>
-                        {/* Debug Lokasi (Optional) */}
                         <p className="text-[10px] text-gray-400 mt-1">
-                          Lat: {currentLocation.lat?.toFixed(4)}, Long:{" "}
-                          {currentLocation.long?.toFixed(4)}
+                          {locationStatus.message}
                         </p>
                       </div>
                     </div>
@@ -536,15 +627,49 @@ const AbsensiPage = () => {
                       <p className="text-xs text-gray-500 mb-0.5">Jarak</p>
                       <p
                         className={`text-lg font-bold ${
-                          employeeData.isInRadius
+                          locationStatus.color === "green"
                             ? "text-green-600"
-                            : "text-red-500"
+                            : locationStatus.color === "amber"
+                              ? "text-amber-600"
+                              : "text-red-500"
                         }`}
                       >
-                        {employeeData.distance}m
+                        {locationStatus.distance}m
                       </p>
+                      {locationStatus.radius && (
+                        <p className="text-[10px] text-gray-400">
+                          Batas: {locationStatus.radius}m
+                        </p>
+                      )}
                     </div>
                   </div>
+
+                  {/* GPS Coordinates Display */}
+                  {currentLocation.lat && currentLocation.long && (
+                    <div className="mt-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                      <p className="text-xs text-gray-500 font-medium mb-1">
+                        📍 Koordinat GPS Anda:
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <div className="font-mono text-xs text-gray-700">
+                          <span className="text-gray-500">Lat:</span>{" "}
+                          {currentLocation.lat.toFixed(6)}
+                        </div>
+                        <div className="font-mono text-xs text-gray-700">
+                          <span className="text-gray-500">Long:</span>{" "}
+                          {currentLocation.long.toFixed(6)}
+                        </div>
+                        <a
+                          href={`https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.long}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                        >
+                          🗺️ Lihat di Maps
+                        </a>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Action Buttons */}
@@ -553,11 +678,11 @@ const AbsensiPage = () => {
                   <button
                     onClick={handleKlikAbsenMasuk}
                     disabled={
-                      !employeeData.isInRadius ||
+                      locationError ||
                       isCameraActive ||
                       backendLoading ||
                       !modelLoaded ||
-                      employeeData.todayCheckIn ||
+                      absensiHariIni?.checkIn ||
                       isProcessing
                     }
                     className="py-4 bg-[#00b4dd] text-white font-semibold rounded-lg hover:bg-[#0099cc] transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform active:scale-[0.98]"
@@ -575,7 +700,7 @@ const AbsensiPage = () => {
                     ) : (
                       <>
                         <LogIn size={18} />
-                        {employeeData.todayCheckIn
+                        {absensiHariIni?.checkIn
                           ? "Sudah Absen Masuk"
                           : "Absen Masuk"}
                       </>

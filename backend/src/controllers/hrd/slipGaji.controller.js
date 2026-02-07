@@ -4,6 +4,7 @@ import KomponenGajiModel from "../../models/komponenGaji.model.js";
 import KaryawanModel from "../../models/karyawan.model.js";
 import AbsensiKaryawanModel from "../../models/absensiModel.js";
 import KuotaCutiModel from "../../models/kuotaCutiModel.js";
+import LemburModel from "../../models/lembur.model.js";
 import { Op } from "sequelize";
 
 export default class SlipGajiController {
@@ -115,6 +116,21 @@ export default class SlipGajiController {
 
         const gajiPokok = parseFloat(karyawan.gaji_pokok) || 0;
 
+        // INTEGRASI LEMBUR: Ambil data lembur bulan ini yang sudah approved
+        const lemburData = await LemburModel.findAll({
+          where: {
+            karyawan_id: karyawan.id,
+            tanggal: { [Op.between]: [startDate, endDate] },
+            status: "approved",
+          },
+        });
+
+        // Hitung total jam lembur
+        const totalLemburJam = lemburData.reduce(
+          (sum, l) => sum + parseFloat(l.total_jam),
+          0,
+        );
+
         // Hitung bonus dan potongan
         let totalBonus = 0;
         let totalPotongan = 0;
@@ -139,8 +155,12 @@ export default class SlipGajiController {
               }
               break;
             case "per_jam":
-              // Untuk lembur, default 0 (bisa di-edit manual)
-              nilai = 0;
+              // INTEGRASI LEMBUR: Hitung otomatis jika ada komponen lembur (per_jam + bonus)
+              if (komponen.tipe === "bonus" && totalLemburJam > 0) {
+                nilai = nilaiDefault * totalLemburJam;
+              } else {
+                nilai = 0;
+              }
               break;
           }
 
@@ -156,7 +176,10 @@ export default class SlipGajiController {
               nama_komponen: komponen.nama,
               tipe: komponen.tipe,
               nilai: nilai,
-              keterangan: `${komponen.metode}: ${nilaiDefault}`,
+              keterangan:
+                komponen.metode === "per_jam"
+                  ? `${totalLemburJam} jam x ${nilaiDefault}`
+                  : `${komponen.metode}: ${nilaiDefault}`,
             });
           }
         }
@@ -173,6 +196,7 @@ export default class SlipGajiController {
             total_terlambat: stats.terlambat,
             total_absen: totalAbsen,
             total_cuti: totalCuti,
+            total_lembur_jam: totalLemburJam,
             gaji_pokok: gajiPokok,
             total_pendapatan: totalPendapatan,
             total_potongan: totalPotongan,
@@ -194,7 +218,7 @@ export default class SlipGajiController {
             total_terlambat: stats.terlambat,
             total_absen: totalAbsen,
             total_cuti: totalCuti,
-            total_lembur_jam: 0,
+            total_lembur_jam: totalLemburJam,
             gaji_pokok: gajiPokok,
             total_pendapatan: totalPendapatan,
             total_potongan: totalPotongan,
@@ -411,6 +435,53 @@ export default class SlipGajiController {
       return res.status(200).json({
         msg: "Slip gaji berhasil difinalisasi",
         data: slip,
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        msg: "Terjadi kesalahan pada server",
+      });
+    }
+  }
+
+  // HRD: Bulk finalize all draft slips
+  static async bulkFinalize(req, res) {
+    try {
+      const { bulan, tahun } = req.body;
+
+      if (!bulan || !tahun) {
+        return res.status(400).json({
+          msg: "Bulan dan tahun wajib diisi",
+        });
+      }
+
+      // Find all draft slips for this month
+      const draftSlips = await SlipGajiModel.findAll({
+        where: {
+          bulan: parseInt(bulan),
+          tahun: parseInt(tahun),
+          status: "draft",
+        },
+      });
+
+      if (draftSlips.length === 0) {
+        return res.status(404).json({
+          msg: "Tidak ada slip gaji draft untuk difinalisasi",
+        });
+      }
+
+      // Finalize all draft slips
+      const updatePromises = draftSlips.map((slip) =>
+        slip.update({ status: "final" }),
+      );
+
+      await Promise.all(updatePromises);
+
+      return res.status(200).json({
+        msg: `Berhasil finalisasi ${draftSlips.length} slip gaji`,
+        data: {
+          total_finalized: draftSlips.length,
+        },
       });
     } catch (error) {
       console.error(error);

@@ -121,11 +121,13 @@ const KelolaCutiPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Cegah double submit
+    if (loading) return;
     try {
       if (isEditMode && selectedData) {
-        await handleUpdateKuotaCuti(selectedData.id, formData);
+        await handleUpdateKuotaCuti(selectedData.id, formData, filterTahun);
       } else {
-        await handleCreateKuotaCuti(formData);
+        await handleCreateKuotaCuti(formData, filterTahun);
       }
       closeModal();
     } catch (error) {
@@ -149,7 +151,7 @@ const KelolaCutiPage = () => {
   const handleDelete = async (id) => {
     if (window.confirm("Apakah Anda yakin ingin menghapus kuota cuti ini?")) {
       try {
-        await handleDeleteKuotaCuti(id);
+        await handleDeleteKuotaCuti(id, filterTahun);
       } catch (error) {
         // Error sudah di-handle di hook
       }
@@ -464,11 +466,11 @@ const KelolaCutiPage = () => {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {new Date(item.tanggal_mulai).toLocaleDateString(
-                          "id-ID"
+                          "id-ID",
                         )}{" "}
                         -{" "}
                         {new Date(item.tanggal_selesai).toLocaleDateString(
-                          "id-ID"
+                          "id-ID",
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -630,11 +632,11 @@ const KelolaCutiPage = () => {
               <p className="text-sm">
                 <span className="font-medium">Tanggal:</span>{" "}
                 {new Date(selectedPengajuan.tanggal_mulai).toLocaleDateString(
-                  "id-ID"
+                  "id-ID",
                 )}{" "}
                 -{" "}
                 {new Date(selectedPengajuan.tanggal_selesai).toLocaleDateString(
-                  "id-ID"
+                  "id-ID",
                 )}
               </p>
               <p className="text-sm">

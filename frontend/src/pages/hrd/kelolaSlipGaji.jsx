@@ -13,6 +13,8 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
+  AlertTriangle,
+  CheckCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -20,6 +22,7 @@ import {
   getSlipGajiBulanan,
   getSlipGajiDetail,
   finalizeSlipGaji,
+  bulkFinalizeSlipGaji,
 } from "../../services/hrd/gajiService";
 
 // Nama bulan Indonesia
@@ -74,6 +77,91 @@ const Modal = ({ isOpen, onClose, title, children, size = "md" }) => {
   );
 };
 
+// Confirmation Modal Component
+const ConfirmationModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmText = "Ya, Lanjutkan",
+  cancelText = "Batal",
+  type = "warning", // warning, danger, success
+  loading = false,
+}) => {
+  if (!isOpen) return null;
+
+  const typeStyles = {
+    warning: {
+      icon: AlertTriangle,
+      iconColor: "text-yellow-600",
+      bgColor: "bg-yellow-50",
+      borderColor: "border-yellow-200",
+      buttonColor: "bg-yellow-600 hover:bg-yellow-700",
+    },
+    danger: {
+      icon: AlertTriangle,
+      iconColor: "text-red-600",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
+      buttonColor: "bg-red-600 hover:bg-red-700",
+    },
+    success: {
+      icon: CheckCircle,
+      iconColor: "text-green-600",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
+      buttonColor: "bg-green-600 hover:bg-green-700",
+    },
+  };
+
+  const style = typeStyles[type] || typeStyles.warning;
+  const Icon = style.icon;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="fixed inset-0 bg-black/50"
+        onClick={loading ? undefined : onClose}
+      ></div>
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md z-10">
+        <div className="p-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div
+              className={`w-12 h-12 rounded-full ${style.bgColor} ${style.borderColor} border-2 flex items-center justify-center flex-shrink-0`}
+            >
+              <Icon className={`w-6 h-6 ${style.iconColor}`} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            </div>
+          </div>
+          <p className="text-gray-600 mb-6 ml-16">{message}</p>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={onClose}
+              disabled={loading}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              {cancelText}
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={loading}
+              className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2 ${style.buttonColor}`}
+            >
+              {loading && (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              )}
+              {confirmText}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function KelolaSlipGaji() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -84,13 +172,23 @@ export default function KelolaSlipGaji() {
   const [tahun, setTahun] = useState(new Date().getFullYear());
   const [filterStatus, setFilterStatus] = useState("");
 
+  // Confirmation modal states
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    type: "warning",
+    title: "",
+    message: "",
+    onConfirm: null,
+    loading: false,
+  });
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const response = await getSlipGajiBulanan(
         bulan,
         tahun,
-        filterStatus || null
+        filterStatus || null,
       );
       setSlipList(response.data?.slipGaji || []);
     } catch (error) {
@@ -105,25 +203,28 @@ export default function KelolaSlipGaji() {
     fetchData();
   }, [fetchData]);
 
-  const handleGenerate = async () => {
-    if (
-      !window.confirm(
-        `Generate slip gaji untuk ${namaBulan[bulan - 1]} ${tahun}?`
-      )
-    ) {
-      return;
-    }
-
-    setGenerating(true);
-    try {
-      const response = await generateSlipGaji(bulan, tahun);
-      toast.success(response.msg || "Berhasil generate slip gaji");
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.msg || "Gagal generate slip gaji");
-    } finally {
-      setGenerating(false);
-    }
+  const handleGenerate = () => {
+    setConfirmModal({
+      isOpen: true,
+      type: "warning",
+      title: "Generate Slip Gaji",
+      message: `Apakah Anda yakin ingin generate slip gaji untuk ${
+        namaBulan[bulan - 1]
+      } ${tahun}? Slip yang sudah final tidak akan di-generate ulang.`,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, loading: true }));
+        try {
+          const response = await generateSlipGaji(bulan, tahun);
+          toast.success(response.msg || "Berhasil generate slip gaji");
+          fetchData();
+          setConfirmModal({ ...confirmModal, isOpen: false, loading: false });
+        } catch (error) {
+          toast.error(error.response?.data?.msg || "Gagal generate slip gaji");
+          setConfirmModal((prev) => ({ ...prev, loading: false }));
+        }
+      },
+      loading: false,
+    });
   };
 
   const handleViewDetail = async (slip) => {
@@ -136,23 +237,62 @@ export default function KelolaSlipGaji() {
     }
   };
 
-  const handleFinalize = async (id) => {
-    if (
-      !window.confirm(
-        "Finalize slip gaji ini? Setelah final tidak dapat diubah."
-      )
-    ) {
+  const handleFinalize = (id, karyawanNama = "") => {
+    setConfirmModal({
+      isOpen: true,
+      type: "warning",
+      title: "Finalisasi Slip Gaji",
+      message: `Apakah Anda yakin ingin finalisasi slip gaji ${
+        karyawanNama ? `untuk ${karyawanNama}` : "ini"
+      }? Setelah difinalisasi, slip gaji tidak dapat diubah lagi.`,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, loading: true }));
+        try {
+          await finalizeSlipGaji(id);
+          toast.success("Slip gaji berhasil difinalisasi");
+          fetchData();
+          setIsDetailModalOpen(false);
+          setConfirmModal({ ...confirmModal, isOpen: false, loading: false });
+        } catch (error) {
+          toast.error(error.response?.data?.msg || "Gagal finalize slip gaji");
+          setConfirmModal((prev) => ({ ...prev, loading: false }));
+        }
+      },
+      loading: false,
+    });
+  };
+
+  const handleBulkFinalize = () => {
+    const totalDraft = slipList.filter((s) => s.status === "draft").length;
+
+    if (totalDraft === 0) {
+      toast.error("Tidak ada slip gaji draft untuk difinalisasi");
       return;
     }
 
-    try {
-      await finalizeSlipGaji(id);
-      toast.success("Slip gaji berhasil difinalisasi");
-      fetchData();
-      setIsDetailModalOpen(false);
-    } catch (error) {
-      toast.error(error.response?.data?.msg || "Gagal finalize slip gaji");
-    }
+    setConfirmModal({
+      isOpen: true,
+      type: "warning",
+      title: "Finalisasi Semua Slip Gaji",
+      message: `Apakah Anda yakin ingin finalisasi SEMUA ${totalDraft} slip gaji draft untuk ${
+        namaBulan[bulan - 1]
+      } ${tahun}? Setelah difinalisasi, slip gaji tidak dapat diubah lagi.`,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, loading: true }));
+        try {
+          const response = await bulkFinalizeSlipGaji(bulan, tahun);
+          toast.success(response.msg || "Berhasil finalisasi semua slip gaji");
+          fetchData();
+          setConfirmModal({ ...confirmModal, isOpen: false, loading: false });
+        } catch (error) {
+          toast.error(
+            error.response?.data?.msg || "Gagal finalisasi slip gaji",
+          );
+          setConfirmModal((prev) => ({ ...prev, loading: false }));
+        }
+      },
+      loading: false,
+    });
   };
 
   // Summary stats
@@ -160,7 +300,7 @@ export default function KelolaSlipGaji() {
   const totalFinal = slipList.filter((s) => s.status === "final").length;
   const totalGaji = slipList.reduce(
     (acc, s) => acc + parseFloat(s.gaji_bersih),
-    0
+    0,
   );
 
   return (
@@ -266,14 +406,25 @@ export default function KelolaSlipGaji() {
               <option value="final">Final</option>
             </select>
           </div>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50"
-          >
-            <Play className="w-4 h-4" />
-            {generating ? "Generating..." : "Generate Slip Gaji"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50"
+            >
+              <Play className="w-4 h-4" />
+              {generating ? "Generating..." : "Generate Slip Gaji"}
+            </button>
+            {totalDraft > 0 && (
+              <button
+                onClick={handleBulkFinalize}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                <CheckCheck className="w-4 h-4" />
+                Finalisasi Semua ({totalDraft})
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -401,7 +552,12 @@ export default function KelolaSlipGaji() {
                         </button>
                         {slip.status === "draft" && (
                           <button
-                            onClick={() => handleFinalize(slip.id)}
+                            onClick={() =>
+                              handleFinalize(
+                                slip.id,
+                                slip.karyawan?.nama_lengkap,
+                              )
+                            }
                             className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg"
                             title="Finalize"
                           >
@@ -550,7 +706,12 @@ export default function KelolaSlipGaji() {
             {/* Actions */}
             {selectedSlip.status === "draft" && (
               <button
-                onClick={() => handleFinalize(selectedSlip.id)}
+                onClick={() =>
+                  handleFinalize(
+                    selectedSlip.id,
+                    selectedSlip.karyawan?.nama_lengkap,
+                  )
+                }
                 className="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 flex items-center justify-center gap-2"
               >
                 <CheckCircle className="w-4 h-4" />
@@ -560,6 +721,20 @@ export default function KelolaSlipGaji() {
           </div>
         )}
       </Modal>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={() =>
+          !confirmModal.loading &&
+          setConfirmModal({ ...confirmModal, isOpen: false })
+        }
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        loading={confirmModal.loading}
+      />
     </div>
   );
 }

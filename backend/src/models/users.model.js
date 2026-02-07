@@ -39,5 +39,5 @@ UsersModel.init(
     modelName: "users",
     tableName: "m_users",
     timestamps: true,
-  }
+  },
 );

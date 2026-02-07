@@ -150,7 +150,7 @@ const StatusBadge = ({ status }) => {
 export default function KelolaAbsensiKaryawan() {
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [absensiData, setAbsensiData] = useState([]);
@@ -218,14 +218,14 @@ export default function KelolaAbsensiKaryawan() {
     (item) =>
       item.nama_lengkap?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.jabatan?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.departement?.toLowerCase().includes(searchTerm.toLowerCase())
+      item.departement?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   // Pagination
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
   const paginatedData = filteredData.slice(
     (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
+    currentPage * rowsPerPage,
   );
 
   // Handle manual absensi
@@ -238,6 +238,25 @@ export default function KelolaAbsensiKaryawan() {
       keterangan: "",
     });
     setIsManualModalOpen(true);
+  };
+
+  // Handle status change untuk clear time fields jika bukan hadir/terlambat
+  const handleStatusChange = (newStatus) => {
+    if (newStatus === "masuk" || newStatus === "terlambat") {
+      setFormData({
+        ...formData,
+        status: newStatus,
+        jam_masuk: formData.jam_masuk || "08:00",
+      });
+    } else {
+      // Untuk status tidak_hadir, izin, sakit, cuti - clear jam
+      setFormData({
+        ...formData,
+        status: newStatus,
+        jam_masuk: "",
+        jam_keluar: "",
+      });
+    }
   };
 
   // Handle edit absensi
@@ -264,7 +283,7 @@ export default function KelolaAbsensiKaryawan() {
       const res = await getAbsensiBulananKaryawan(
         karyawanId,
         detailBulan,
-        detailTahun
+        detailTahun,
       );
       setDetailData(res.data);
     } catch (error) {
@@ -275,11 +294,15 @@ export default function KelolaAbsensiKaryawan() {
   // Submit manual absensi
   const handleSubmitManual = async () => {
     try {
+      // Untuk status tidak_hadir, izin, sakit, cuti - paksa jam jadi null
+      const shouldHaveTime =
+        formData.status === "masuk" || formData.status === "terlambat";
+
       await createAbsensiManual({
         karyawan_id: selectedKaryawan.karyawan_id,
         tanggal: selectedDate,
-        jam_masuk: formData.jam_masuk || null,
-        jam_keluar: formData.jam_keluar || null,
+        jam_masuk: shouldHaveTime ? formData.jam_masuk || null : null,
+        jam_keluar: shouldHaveTime ? formData.jam_keluar || null : null,
         status: formData.status,
         keterangan: formData.keterangan,
       });
@@ -635,9 +658,7 @@ export default function KelolaAbsensiKaryawan() {
             </label>
             <select
               value={formData.status}
-              onChange={(e) =>
-                setFormData({ ...formData, status: e.target.value })
-              }
+              onChange={(e) => handleStatusChange(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
             >
               {statusOptions.map((opt) => (
@@ -665,7 +686,7 @@ export default function KelolaAbsensiKaryawan() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Jam Keluar
+                  Jam Keluar (Opsional)
                 </label>
                 <input
                   type="time"
@@ -676,6 +697,19 @@ export default function KelolaAbsensiKaryawan() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+            </div>
+          )}
+
+          {formData.status !== "masuk" && formData.status !== "terlambat" && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-xs text-amber-700">
+                <strong>Catatan:</strong> Untuk status{" "}
+                {
+                  statusOptions.find((opt) => opt.value === formData.status)
+                    ?.label
+                }
+                , jam masuk dan jam keluar tidak akan dicatat.
+              </p>
             </div>
           )}
 

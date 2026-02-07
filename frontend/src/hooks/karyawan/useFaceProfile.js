@@ -33,7 +33,10 @@ export default function useFaceProfile() {
     async (faceDescriptor) => {
       // 1. Validasi Input
       if (!faceDescriptor) {
-        toast.error("Tidak ada data wajah untuk disimpan", { duration: 2000 });
+        toast.error("Tidak ada data wajah untuk disimpan", {
+          duration: 2000,
+          id: "face-save",
+        });
         return;
       }
 
@@ -56,29 +59,60 @@ export default function useFaceProfile() {
 
         toast.success("Berhasil melakukan registrasi wajah", {
           duration: 2000,
+          id: "face-register",
         });
 
         await fetchProfileFace();
         return response;
       } catch (error) {
         console.error("Error saving face profile:", error);
-        const errorMsg =
-          error.response?.data?.msg || "Gagal melakukan registrasi";
-        setError(errorMsg);
-        toast.error(errorMsg, { duration: 2000 });
+
+        // Cek apakah error karena data pribadi belum lengkap
+        if (
+          error.response?.status === 400 &&
+          error.response?.data?.incomplete_fields
+        ) {
+          const incompleteFields = error.response.data.incomplete_fields;
+          const missingFields = [];
+
+          if (incompleteFields.nama_lengkap) missingFields.push("Nama Lengkap");
+          if (incompleteFields.alamat) missingFields.push("Alamat");
+
+          const errorMsg =
+            error.response.data.msg || "Data pribadi belum lengkap";
+          setError(errorMsg);
+
+          toast.error(errorMsg, {
+            duration: 4000,
+            id: "face-register",
+            description:
+              missingFields.length > 0
+                ? `Harap isi: ${missingFields.join(", ")}`
+                : undefined,
+          });
+        } else {
+          const errorMsg =
+            error.response?.data?.msg || "Gagal melakukan registrasi";
+          setError(errorMsg);
+          toast.error(errorMsg, { duration: 2000, id: "face-register" });
+        }
+
         throw error;
       } finally {
         setLoading(false);
       }
     },
-    [fetchProfileFace]
+    [fetchProfileFace],
   );
 
   // Update facesave
   const updateFaceProfile = useCallback(
     async (faceDescriptor) => {
       if (!faceDescriptor || !faceProfile?.id) {
-        toast.error("Tidak ada data untuk diperbarui", { duration: 2000 });
+        toast.error("Tidak ada data untuk diperbarui", {
+          duration: 2000,
+          id: "face-update",
+        });
         return;
       }
 
@@ -97,6 +131,7 @@ export default function useFaceProfile() {
 
         toast.success("Wajah berhasil diperbarui", {
           duration: 2000,
+          id: "face-update",
         });
 
         await fetchProfileFace();
@@ -105,19 +140,22 @@ export default function useFaceProfile() {
         console.error("Error updating face profile:", error);
         const errorMsg = error.response?.data?.msg || "Gagal memperbarui wajah";
         setError(errorMsg);
-        toast.error(errorMsg, { duration: 2000 });
+        toast.error(errorMsg, { duration: 2000, id: "face-update" });
         throw error;
       } finally {
         setLoading(false);
       }
     },
-    [faceProfile, fetchProfileFace]
+    [faceProfile, fetchProfileFace],
   );
 
   // Hapus face profile
   const deleteFaceProfile = useCallback(async () => {
     if (!faceProfile?.id) {
-      toast.error("Tidak ada data wajah untuk dihapus", { duration: 2000 });
+      toast.error("Tidak ada data wajah untuk dihapus", {
+        duration: 2000,
+        id: "face-delete",
+      });
       return;
     }
 
@@ -129,11 +167,17 @@ export default function useFaceProfile() {
       // await deleteFace(faceProfile.id);
 
       setFaceProfile(null);
-      toast.success("Data wajah berhasil dihapus", { duration: 2000 });
+      toast.success("Data wajah berhasil dihapus", {
+        duration: 2000,
+        id: "face-delete",
+      });
     } catch (error) {
       console.error("Error deleting face profile:", error);
       setError("Gagal menghapus data wajah");
-      toast.error("Gagal menghapus data wajah", { duration: 2000 });
+      toast.error("Gagal menghapus data wajah", {
+        duration: 2000,
+        id: "face-delete",
+      });
       throw error;
     } finally {
       setLoading(false);

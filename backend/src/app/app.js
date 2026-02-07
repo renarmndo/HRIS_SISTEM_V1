@@ -9,6 +9,8 @@ import KaryawanProfile from "../routes/karyawan/profileKaryawan.routes.js";
 import KaryawanFace from "../routes/karyawan/faceKaryawan.routes.js";
 import AbsensiKaryawanRoutes from "../routes/karyawan/absensiKaryawan.routes.js";
 import PengajuanCutiRoutes from "../routes/karyawan/pengajuanCuti.routes.js";
+import KaryawanDashboardRoutes from "../routes/karyawan/karyawanDashboard.routes.js";
+import KaryawanLemburRoutes from "../routes/karyawan/lembur.routes.js";
 
 // HRD
 import LokasiPerusahaanRoutes from "../routes/hrd/lokasiKaryawan.routes.js";
@@ -16,6 +18,7 @@ import KelolaKaryawanRoutes from "../routes/hrd/kelolaKaryawan.routes.js";
 import KuotaCutiRoutes from "../routes/hrd/kuotaCuti.routes.js";
 import HrdAbsensiRoutes from "../routes/hrd/hrdAbsensi.routes.js";
 import HrdDashboardRoutes from "../routes/hrd/hrdDashboard.routes.js";
+import HrdLemburRoutes from "../routes/hrd/lembur.routes.js";
 
 // PENGGAJIAN
 import KomponenGajiRoutes from "../routes/hrd/komponenGaji.routes.js";
@@ -35,6 +38,8 @@ app.use("/api/v1", KaryawanProfile);
 app.use("/api/v1", KaryawanFace);
 app.use("/api/v1", AbsensiKaryawanRoutes);
 app.use("/api/v1", PengajuanCutiRoutes);
+app.use("/api/v1", KaryawanDashboardRoutes);
+app.use("/api/v1", KaryawanLemburRoutes);
 
 // hrd
 app.use("/api/v1", LokasiPerusahaanRoutes);
@@ -42,6 +47,7 @@ app.use("/api/v1", KelolaKaryawanRoutes);
 app.use("/api/v1", KuotaCutiRoutes);
 app.use("/api/v1", HrdAbsensiRoutes);
 app.use("/api/v1", HrdDashboardRoutes);
+app.use("/api/v1", HrdLemburRoutes);
 
 // penggajian
 app.use("/api/v1", KomponenGajiRoutes);

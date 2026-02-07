@@ -25,6 +25,17 @@ export default class FaceKaryawanController {
         });
       }
 
+      // Validasi: Pastikan data pribadi sudah diisi
+      if (!karyawan.nama_lengkap || !karyawan.alamat) {
+        return res.status(400).json({
+          msg: "Harap lengkapi data pribadi Anda terlebih dahulu sebelum melakukan registrasi wajah",
+          incomplete_fields: {
+            nama_lengkap: !karyawan.nama_lengkap,
+            alamat: !karyawan.alamat,
+          },
+        });
+      }
+
       const karyawan_id = karyawan.id;
 
       //   chek apakah image sudah pernah di register

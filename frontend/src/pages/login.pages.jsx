@@ -34,19 +34,20 @@ export default function LoginPage() {
     <div className="min-h-screen bg-linear-to-br from-blue-100 via-white to-blue-300 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Logo Section */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-blue-900 tracking-tight">
-            HRIS LOGIN
-          </h1>
-          <p className="mt-2 text-gray-600 font-medium text-sm">
-            Silakan Masuk Ke Akun Anda
-          </p>
-        </div>
 
         {/* Login Form Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-blue-100 overflow-hidden">
           {/* Form Content */}
+
           <div className="p-6 sm:p-8">
+            <div className="text-center mb-8">
+              <h1 className="text-2xl md:text-3xl font-bold text-blue-900 tracking-tight">
+                HRIS LOGIN
+              </h1>
+              <p className="mt-2 text-gray-600 font-medium text-sm">
+                Silakan Masuk Ke Akun Anda
+              </p>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Email Field */}
               <div className="space-y-2">

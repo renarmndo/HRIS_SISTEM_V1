@@ -23,7 +23,7 @@ export default function useCuti() {
       return response;
     } catch (error) {
       toast.error(
-        error.response?.data?.msg || "Gagal mengambil data kuota cuti"
+        error.response?.data?.msg || "Gagal mengambil data kuota cuti",
       );
       throw error;
     } finally {
@@ -33,12 +33,13 @@ export default function useCuti() {
 
   // Create kuota cuti
   const handleCreateKuotaCuti = useCallback(
-    async (data) => {
+    async (data, tahun = null) => {
       setLoading(true);
       try {
         const response = await createKuotaCuti(data);
         toast.success(response.msg || "Berhasil menambah kuota cuti");
-        await fetchKuotaCuti();
+        // Gunakan tahun untuk refresh agar konsisten dengan filter
+        await fetchKuotaCuti(tahun);
         return response;
       } catch (error) {
         toast.error(error.response?.data?.msg || "Gagal menambah kuota cuti");
@@ -47,38 +48,40 @@ export default function useCuti() {
         setLoading(false);
       }
     },
-    [fetchKuotaCuti]
+    [fetchKuotaCuti],
   );
 
   // Update kuota cuti
   const handleUpdateKuotaCuti = useCallback(
-    async (id, data) => {
+    async (id, data, tahun = null) => {
       setLoading(true);
       try {
         const response = await updateKuotaCuti(id, data);
         toast.success(response.msg || "Berhasil memperbarui kuota cuti");
-        await fetchKuotaCuti();
+        // Gunakan tahun untuk refresh agar konsisten dengan filter
+        await fetchKuotaCuti(tahun);
         return response;
       } catch (error) {
         toast.error(
-          error.response?.data?.msg || "Gagal memperbarui kuota cuti"
+          error.response?.data?.msg || "Gagal memperbarui kuota cuti",
         );
         throw error;
       } finally {
         setLoading(false);
       }
     },
-    [fetchKuotaCuti]
+    [fetchKuotaCuti],
   );
 
   // Delete kuota cuti
   const handleDeleteKuotaCuti = useCallback(
-    async (id) => {
+    async (id, tahun = null) => {
       setLoading(true);
       try {
         const response = await deleteKuotaCuti(id);
         toast.success(response.msg || "Berhasil menghapus kuota cuti");
-        await fetchKuotaCuti();
+        // Gunakan tahun untuk refresh agar konsisten dengan filter
+        await fetchKuotaCuti(tahun);
         return response;
       } catch (error) {
         toast.error(error.response?.data?.msg || "Gagal menghapus kuota cuti");
@@ -87,7 +90,7 @@ export default function useCuti() {
         setLoading(false);
       }
     },
-    [fetchKuotaCuti]
+    [fetchKuotaCuti],
   );
 
   // Get pengajuan cuti
@@ -99,7 +102,7 @@ export default function useCuti() {
       return response;
     } catch (error) {
       toast.error(
-        error.response?.data?.msg || "Gagal mengambil data pengajuan cuti"
+        error.response?.data?.msg || "Gagal mengambil data pengajuan cuti",
       );
       throw error;
     } finally {
@@ -118,14 +121,14 @@ export default function useCuti() {
         return response;
       } catch (error) {
         toast.error(
-          error.response?.data?.msg || "Gagal memperbarui status pengajuan"
+          error.response?.data?.msg || "Gagal memperbarui status pengajuan",
         );
         throw error;
       } finally {
         setLoading(false);
       }
     },
-    [fetchPengajuanCuti]
+    [fetchPengajuanCuti],
   );
 
   return {

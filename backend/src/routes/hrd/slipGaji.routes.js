@@ -12,7 +12,7 @@ router.post(
   "/hrd/slip-gaji/generate",
   authMiddleware,
   roleMiddleware("hrd"),
-  SlipGajiController.generateSlipGaji
+  SlipGajiController.generateSlipGaji,
 );
 
 // Get semua slip gaji per bulan
@@ -20,7 +20,7 @@ router.get(
   "/hrd/slip-gaji",
   authMiddleware,
   roleMiddleware("hrd"),
-  SlipGajiController.getAllByBulan
+  SlipGajiController.getAllByBulan,
 );
 
 // Get detail slip gaji by ID
@@ -28,7 +28,7 @@ router.get(
   "/hrd/slip-gaji/:id",
   authMiddleware,
   roleMiddleware("hrd"),
-  SlipGajiController.getById
+  SlipGajiController.getById,
 );
 
 // Update slip gaji (edit komponen)
@@ -36,7 +36,7 @@ router.put(
   "/hrd/slip-gaji/:id",
   authMiddleware,
   roleMiddleware("hrd"),
-  SlipGajiController.update
+  SlipGajiController.update,
 );
 
 // Finalize slip gaji
@@ -44,7 +44,15 @@ router.put(
   "/hrd/slip-gaji/:id/finalize",
   authMiddleware,
   roleMiddleware("hrd"),
-  SlipGajiController.finalize
+  SlipGajiController.finalize,
+);
+
+// Bulk finalize all draft slips for given month
+router.post(
+  "/hrd/slip-gaji/bulk-finalize",
+  authMiddleware,
+  roleMiddleware("hrd"),
+  SlipGajiController.bulkFinalize,
 );
 
 // ============ KARYAWAN ROUTES ============
@@ -54,7 +62,7 @@ router.get(
   "/karyawan/slip-gaji",
   authMiddleware,
   roleMiddleware("karyawan"),
-  SlipGajiController.getSlipGajiSaya
+  SlipGajiController.getSlipGajiSaya,
 );
 
 // Get detail slip gaji sendiri by ID
@@ -62,7 +70,7 @@ router.get(
   "/karyawan/slip-gaji/:id",
   authMiddleware,
   roleMiddleware("karyawan"),
-  SlipGajiController.getSlipGajiSayaById
+  SlipGajiController.getSlipGajiSayaById,
 );
 
 export default router;

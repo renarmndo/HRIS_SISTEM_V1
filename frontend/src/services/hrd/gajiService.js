@@ -5,7 +5,7 @@ import api from "../../api/api";
 export const getKomponenGaji = async (params = {}) => {
   const queryString = new URLSearchParams(params).toString();
   const response = await api.get(
-    `/hrd/komponen-gaji${queryString ? `?${queryString}` : ""}`
+    `/hrd/komponen-gaji${queryString ? `?${queryString}` : ""}`,
   );
   return response.data;
 };
@@ -40,7 +40,7 @@ export const getSlipGajiBulanan = async (bulan, tahun, status = null) => {
 
   const queryString = params.toString();
   const response = await api.get(
-    `/hrd/slip-gaji${queryString ? `?${queryString}` : ""}`
+    `/hrd/slip-gaji${queryString ? `?${queryString}` : ""}`,
   );
   return response.data;
 };
@@ -57,5 +57,13 @@ export const updateSlipGaji = async (id, data) => {
 
 export const finalizeSlipGaji = async (id) => {
   const response = await api.put(`/hrd/slip-gaji/${id}/finalize`);
+  return response.data;
+};
+
+export const bulkFinalizeSlipGaji = async (bulan, tahun) => {
+  const response = await api.post("/hrd/slip-gaji/bulk-finalize", {
+    bulan,
+    tahun,
+  });
   return response.data;
 };

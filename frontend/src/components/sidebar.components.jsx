@@ -18,6 +18,7 @@ import {
   FileTextIcon,
   Settings2,
   Receipt,
+  Clock,
 } from "lucide-react";
 
 export default function SidebarComponents({ isOpen, onToggle }) {
@@ -76,24 +77,6 @@ export default function SidebarComponents({ isOpen, onToggle }) {
         label: "Data Cuti",
         icon: Calendar,
         path: "/hrd/leaves",
-      },
-      {
-        id: 7,
-        label: "Performance",
-        icon: BarChart3,
-        path: "/hrd/reports",
-      },
-      {
-        id: 8,
-        label: "Reports & Analytics",
-        icon: FileText,
-        path: "/hrd/analytics",
-      },
-      {
-        id: 9,
-        label: "Settings",
-        icon: Settings,
-        path: "/hrd/settings",
       },
     ],
     karyawan: [

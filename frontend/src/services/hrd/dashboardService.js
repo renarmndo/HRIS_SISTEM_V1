@@ -20,3 +20,9 @@ export const quickUpdatePengajuanStatus = async (id, status, catatan) => {
   });
   return response.data;
 };
+
+// Get analytics data for charts
+export const getHrdAnalytics = async () => {
+  const response = await api.get("/hrd/dashboard/analytics");
+  return response.data;
+};

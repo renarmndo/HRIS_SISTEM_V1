@@ -95,11 +95,11 @@ const MasterUserHRD = () => {
   };
 
   // Filter Search
-  const filteredUsers = karyawanData.filter(
+  const filteredUsers = (karyawanData || []).filter(
     (user) =>
       user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role?.toLowerCase().includes(searchTerm.toLowerCase())
+      user.role?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   useEffect(() => {

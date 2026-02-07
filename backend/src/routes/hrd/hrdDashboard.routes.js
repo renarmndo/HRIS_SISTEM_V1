@@ -10,7 +10,7 @@ router.get(
   "/hrd/dashboard/stats",
   authMiddleware,
   roleMiddleware("hrd"),
-  HrdDashboardController.getDashboardStats
+  HrdDashboardController.getDashboardStats,
 );
 
 // Get pengajuan cuti terbaru
@@ -18,7 +18,7 @@ router.get(
   "/hrd/dashboard/pengajuan-cuti",
   authMiddleware,
   roleMiddleware("hrd"),
-  HrdDashboardController.getPengajuanCutiTerbaru
+  HrdDashboardController.getPengajuanCutiTerbaru,
 );
 
 // Quick approve/reject pengajuan cuti
@@ -26,7 +26,15 @@ router.put(
   "/hrd/dashboard/pengajuan-cuti/:id",
   authMiddleware,
   roleMiddleware("hrd"),
-  HrdDashboardController.quickUpdatePengajuanStatus
+  HrdDashboardController.quickUpdatePengajuanStatus,
+);
+
+// Get analytics data (charts)
+router.get(
+  "/hrd/dashboard/analytics",
+  authMiddleware,
+  roleMiddleware("hrd"),
+  HrdDashboardController.getHrdAnalytics,
 );
 
 export default router;

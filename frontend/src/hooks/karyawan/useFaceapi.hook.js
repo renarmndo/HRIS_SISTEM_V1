@@ -58,21 +58,40 @@ export default function useFaceAPI() {
       }
 
       try {
-        setIsLoading(true);
-
+        // Tidak set loading untuk mencegah flicker
         const detection = await faceapi
           .detectSingleFace(
             videoElement,
             new faceapi.TinyFaceDetectorOptions({
-              inputSize: 320,
-              scoreThreshold: 0.5,
-            })
+              inputSize: 416, // Lebih besar = lebih akurat
+              scoreThreshold: 0.7, // Lebih tinggi = lebih ketat
+            }),
           )
           .withFaceLandmarks()
           .withFaceDescriptor();
 
         if (detection) {
-          console.log("✅ Face detected successfully");
+          // Validasi ukuran wajah - minimal 100x100 px untuk memastikan wajah cukup dekat
+          const { width, height } = detection.detection.box;
+          const minFaceSize = 80; // Ukuran minimal wajah dalam pixel
+
+          if (width < minFaceSize || height < minFaceSize) {
+            console.log(
+              `⚠️ Face too small: ${Math.round(width)}x${Math.round(height)}px (min: ${minFaceSize}px)`,
+            );
+            return null;
+          }
+
+          // Validasi confidence score
+          const score = detection.detection.score;
+          if (score < 0.75) {
+            console.log(`⚠️ Low confidence: ${(score * 100).toFixed(1)}%`);
+            return null;
+          }
+
+          console.log(
+            `✅ Face detected: ${Math.round(width)}x${Math.round(height)}px, confidence: ${(score * 100).toFixed(1)}%`,
+          );
           return {
             descriptor: detection.descriptor,
             detection: detection.detection,
@@ -80,16 +99,13 @@ export default function useFaceAPI() {
           };
         }
 
-        console.log("❌ No face detected");
         return null;
       } catch (err) {
         console.error("❌ Error detecting face:", err);
         return null;
-      } finally {
-        setIsLoading(false);
       }
     },
-    [modelLoaded]
+    [modelLoaded],
   );
 
   return {
