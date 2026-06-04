@@ -14,6 +14,7 @@ import {
   Info,
 } from "lucide-react";
 import useCutiKaryawan from "../../hooks/karyawan/useCutiKaryawan.hook";
+import ConfirmationModal from "../../components/ConfirmationModal";
 
 // Nama bulan Indonesia
 const namaBulan = [
@@ -65,6 +66,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
 export default function DashboardCutiPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState({ open: false, id: null });
   const [formData, setFormData] = useState({
     tanggal_mulai: "",
     tanggal_selesai: "",
@@ -123,15 +125,18 @@ export default function DashboardCutiPage() {
     }
   };
 
-  const handleCancel = async (id) => {
-    if (
-      window.confirm("Apakah Anda yakin ingin membatalkan pengajuan cuti ini?")
-    ) {
-      try {
-        await handleCancelPengajuan(id);
-      } catch (error) {
-        // Error sudah di-handle di hook
-      }
+  const handleCancel = (id) => {
+    // SECURITY (Task 5.1): ConfirmationModal, bukan window.confirm
+    setConfirmCancel({ open: true, id });
+  };
+
+  const doCancel = async () => {
+    const id = confirmCancel.id;
+    setConfirmCancel({ open: false, id: null });
+    try {
+      await handleCancelPengajuan(id);
+    } catch (error) {
+      // Error sudah di-handle di hook
     }
   };
 
@@ -510,6 +515,16 @@ export default function DashboardCutiPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmationModal
+        isOpen={confirmCancel.open}
+        onClose={() => setConfirmCancel({ open: false, id: null })}
+        onConfirm={doCancel}
+        title="Batalkan Pengajuan Cuti"
+        message="Apakah Anda yakin ingin membatalkan pengajuan cuti ini?"
+        confirmText="Ya, Batalkan"
+        type="warning"
+      />
     </div>
   );
 }

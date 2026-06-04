@@ -58,7 +58,7 @@ export default class LokasiPerusahaanController {
         });
       }
 
-      //   chek apakah id
+      //   cek apakah id
       const lokasiPerusahaan = await LokasiKantorModel.findByPk(id);
 
       if (!lokasiPerusahaan) {

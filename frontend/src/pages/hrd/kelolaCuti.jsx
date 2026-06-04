@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import useCuti from "../../hooks/hrd/useCuti.hook";
+import ConfirmationModal from "../../components/ConfirmationModal";
 
 // Nama bulan Indonesia
 const namaBulan = [
@@ -77,6 +78,7 @@ const KelolaCutiPage = () => {
   const [selectedData, setSelectedData] = useState(null);
   const [filterTahun, setFilterTahun] = useState(new Date().getFullYear());
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null });
   const [selectedPengajuan, setSelectedPengajuan] = useState(null);
   const [approvalData, setApprovalData] = useState({
     status: "",
@@ -148,13 +150,18 @@ const KelolaCutiPage = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus kuota cuti ini?")) {
-      try {
-        await handleDeleteKuotaCuti(id, filterTahun);
-      } catch (error) {
-        // Error sudah di-handle di hook
-      }
+  const handleDelete = (id) => {
+    // SECURITY (Task 5.1): gunakan ConfirmationModal, bukan window.confirm
+    setConfirmDelete({ open: true, id });
+  };
+
+  const doDelete = async () => {
+    const id = confirmDelete.id;
+    setConfirmDelete({ open: false, id: null });
+    try {
+      await handleDeleteKuotaCuti(id, filterTahun);
+    } catch (error) {
+      // Error sudah di-handle di hook
     }
   };
 
@@ -722,6 +729,16 @@ const KelolaCutiPage = () => {
           </div>
         </div>
       </Modal>
+
+      <ConfirmationModal
+        isOpen={confirmDelete.open}
+        onClose={() => setConfirmDelete({ open: false, id: null })}
+        onConfirm={doDelete}
+        title="Hapus Kuota Cuti"
+        message="Apakah Anda yakin ingin menghapus kuota cuti ini? Tindakan tidak dapat dibatalkan."
+        confirmText="Ya, Hapus"
+        type="danger"
+      />
     </div>
   );
 };

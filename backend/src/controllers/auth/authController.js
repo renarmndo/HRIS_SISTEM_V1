@@ -1,19 +1,37 @@
 import UsersModel from "../../models/users.model.js";
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
+import { isNonEmptyString, isValidEmail, isValidUUID } from "../../utils/validators.js";
+
+const ALLOWED_ROLES = new Set(["karyawan", "hrd"]);
+const ALLOWED_STATUS = new Set(["aktif", "tidak_aktif"]);
 
 export default class AuthController {
   static async register(req, res) {
     try {
-      const { username, email, password, role, status } = req.body;
+      // SECURITY (Task 4.9): Abaikan field `role` & `status` dari body.
+      // Client tidak boleh menentukan hak akses user baru. roleMiddleware("hrd")
+      // sudah ada di route; ini defense-in-depth.
+      const { username, email, password } = req.body;
 
-      if (!username || !email || !password) {
+      // SECURITY (Task 4.2): schema validation sederhana
+      if (!isNonEmptyString(username, { minLen: 3, maxLen: 50 })) {
         return res.status(400).json({
-          msg: "Data tidak boleh kosong",
+          msg: "Username harus 3-50 karakter",
+        });
+      }
+      if (!isValidEmail(email)) {
+        return res.status(400).json({
+          msg: "Format email tidak valid",
+        });
+      }
+      if (!isNonEmptyString(password, { minLen: 6, maxLen: 128 })) {
+        return res.status(400).json({
+          msg: "Password harus 6-128 karakter",
         });
       }
 
-      //   chek apakah sudah ada email
+      //   cek apakah sudah ada email
       const users = await UsersModel.findOne({
         where: {
           email: email,
@@ -42,12 +60,14 @@ export default class AuthController {
       const hashedPassword = await argon2.hash(password);
 
       //   create new user
+      // SECURITY (Task 1.1): role & status hardcoded server-side.
+      // Jangan pernah percaya client untuk menentukan role user baru.
       const result = await UsersModel.create({
         username: username,
         email: email,
         password: hashedPassword,
-        role: role,
-        status: status,
+        role: "karyawan",
+        status: "aktif",
       });
 
       // hilangkan password dari object
@@ -81,8 +101,18 @@ export default class AuthController {
           msg: "Email dan Password tidak boleh kosong",
         });
       }
+      if (!isValidEmail(email)) {
+        return res.status(400).json({
+          msg: "Format email tidak valid",
+        });
+      }
+      if (typeof password !== "string" || password.length < 6 || password.length > 128) {
+        return res.status(400).json({
+          msg: "Password tidak valid",
+        });
+      }
 
-      //   chek apakah user ada
+      //   cek apakah user ada
       const user = await UsersModel.findOne({
         where: {
           email: email,
@@ -95,7 +125,7 @@ export default class AuthController {
         });
       }
 
-      // chek status
+      // cek status
       if (user.status === "tidak_aktif") {
         return res.status(400).json({
           msg: "Akun sudah dinonaktifkan oleh admin",
@@ -145,11 +175,25 @@ export default class AuthController {
       const { id } = req.params;
       const { username, email, password, role, status } = req.body;
 
+      // SECURITY (Task 4.2): UUID validation
+      if (!isValidUUID(id)) {
+        return res.status(400).json({ msg: "ID user tidak valid" });
+      }
+
+      // SECURITY (Task 4.9): Whitelist role & status values
+      if (!ALLOWED_ROLES.has(role)) {
+        return res.status(400).json({ msg: "Role tidak valid" });
+      }
+      if (!ALLOWED_STATUS.has(status)) {
+        return res.status(400).json({ msg: "Status tidak valid" });
+      }
+
       // cek field lain (password jangan dicek)
-      if (!username || !email || !role || !status) {
-        return res.status(400).json({
-          msg: "Data tidak boleh kosong (kecuali password)",
-        });
+      if (!isNonEmptyString(username, { minLen: 3, maxLen: 50 })) {
+        return res.status(400).json({ msg: "Username harus 3-50 karakter" });
+      }
+      if (!isValidEmail(email)) {
+        return res.status(400).json({ msg: "Format email tidak valid" });
       }
 
       const user = await UsersModel.findOne({ where: { id } });
@@ -168,8 +212,13 @@ export default class AuthController {
         status,
       };
 
-      // jika password diisi → hash dan update
+      // SECURITY (Task 4.2): password policy
       if (password && password.trim() !== "") {
+        if (typeof password !== "string" || password.length < 6 || password.length > 128) {
+          return res.status(400).json({
+            msg: "Password harus 6-128 karakter",
+          });
+        }
         updateData.password = await argon2.hash(password);
       }
 
@@ -199,12 +248,23 @@ export default class AuthController {
     try {
       const { id } = req.params;
 
+      if (!isValidUUID(id)) {
+        return res.status(400).json({ msg: "ID user tidak valid" });
+      }
+
       // cari user
       const user = await UsersModel.findByPk(id);
 
       if (!user) {
         return res.status(404).json({
           msg: "User tidak ditemukan",
+        });
+      }
+
+      // SECURITY: jangan izinkan HRD menghapus dirinya sendiri
+      if (user.id === req.user.id) {
+        return res.status(400).json({
+          msg: "Tidak dapat menghapus akun Anda sendiri",
         });
       }
 

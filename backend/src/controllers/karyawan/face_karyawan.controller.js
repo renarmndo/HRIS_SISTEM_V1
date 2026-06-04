@@ -7,7 +7,11 @@ export default class FaceKaryawanController {
       const user_id = req.user.id;
       const { face_embedding } = req.body || {};
 
-      if (!face_embedding) {
+      if (
+        !face_embedding ||
+        !Array.isArray(face_embedding) ||
+        face_embedding.length === 0
+      ) {
         return res.status(400).json({
           msg: "Scan Wajah tidak boleh kosong",
         });
@@ -38,7 +42,7 @@ export default class FaceKaryawanController {
 
       const karyawan_id = karyawan.id;
 
-      //   chek apakah image sudah pernah di register
+      //   cek apakah image sudah pernah di register
       const existingFace = await KaryawanFaceModel.findOne({
         where: {
           karyawan_id,
@@ -59,7 +63,7 @@ export default class FaceKaryawanController {
       });
 
       return res.status(201).json({
-        msg: "Berhasil mendapatkan wajah",
+        msg: "Berhasil mendaftarkan wajah",
         data: faceKaryawan,
       });
     } catch (error) {
@@ -75,7 +79,18 @@ export default class FaceKaryawanController {
     try {
       const user_id = req.user.id;
 
-      const { face_embedding, face_image_url } = req.body;
+      const { face_embedding, face_image_url } = req.body || {};
+
+      // SECURITY (Task 2.6 + 4.12): require face_embedding to avoid wiping
+      if (
+        !face_embedding ||
+        !Array.isArray(face_embedding) ||
+        face_embedding.length === 0
+      ) {
+        return res.status(400).json({
+          msg: "face_embedding wajib diisi dan harus berupa array numerik",
+        });
+      }
 
       const karyawan = await KaryawanModel.findOne({
         where: {
@@ -103,10 +118,22 @@ export default class FaceKaryawanController {
         });
       }
 
+      const currentTrainingCount = face.training_count || 0;
+
       await face.update({
         face_embedding: face_embedding,
-        face_image_url: face_image_url,
-        training_count: face.training_count + 1,
+        face_image_url: face_image_url ?? face.face_image_url,
+        training_count: currentTrainingCount + 1,
+      });
+
+      // FIX (Task 2.6): previously this function never sent a response,
+      // causing the client request to hang until timeout.
+      return res.status(200).json({
+        msg: "Berhasil memperbarui data wajah",
+        data: {
+          karyawan_id,
+          training_count: currentTrainingCount + 1,
+        },
       });
     } catch (error) {
       console.log(error);

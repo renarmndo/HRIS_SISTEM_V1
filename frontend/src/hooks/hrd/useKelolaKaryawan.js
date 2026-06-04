@@ -17,7 +17,6 @@ export default function useKelolaKaryawan() {
     try {
       const response = await getUsers();
       const data = response.data;
-      console.log("INI DATA USERS", data);
       setKaryawan(data);
     } catch (error) {
       setError(error.response.data.msg || "Terjadi kesalahan pada server");

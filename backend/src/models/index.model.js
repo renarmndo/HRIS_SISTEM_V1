@@ -4,6 +4,7 @@ import UsersModel from "./users.model.js";
 import KaryawanModel from "./karyawan.model.js";
 import KaryawanFaceModel from "./face_karyawanModel.js";
 import AbsensiKaryawanModel from "./absensiModel.js";
+import LemburModel from "./lembur.model.js";
 
 // HRD
 import LokasiKantorModel from "./lokasiKantor.model.js";
@@ -88,6 +89,17 @@ DetailSlipGajiModel.belongsTo(KomponenGajiModel, {
   as: "komponen",
 });
 
+// Relasi Lembur (Task 3.19)
+// hasMany di sini agar caller bisa pakai `KaryawanModel.findByPk(...)` 
+// lalu `karyawan.getLembur()` dengan alias "lembur".
+// belongsTo KaryawanModel dengan alias "karyawan" sudah di-define
+// di lembur.model.js, sehingga tidak boleh dideklarasikan ulang di sini
+// (akan menyebabkan SequelizeAssociationError duplicate alias).
+KaryawanModel.hasMany(LemburModel, {
+  foreignKey: "karyawan_id",
+  as: "lembur",
+});
+
 export {
   UsersModel,
   KaryawanFaceModel,
@@ -97,4 +109,10 @@ export {
   KomponenGajiModel,
   SlipGajiModel,
   DetailSlipGajiModel,
+  // FIX (Task 3.19): re-export model yang sebelumnya di-import tapi
+  // tidak di-export, sehingga caller lain tidak perlu import path
+  // panjang berulang kali.
+  LokasiKantorModel,
+  AbsensiKaryawanModel,
+  LemburModel,
 };

@@ -1,6 +1,7 @@
-import { Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import LoginPage from "./pages/login.pages";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 import "./App.css";
 
 // VIEW
@@ -28,6 +29,19 @@ import KelolaKomponenGaji from "./pages/hrd/kelolaKomponenGaji";
 import KelolaSlipGaji from "./pages/hrd/kelolaSlipGaji";
 
 function App() {
+  const navigate = useNavigate();
+
+  // FIX (Task 5.5): dengarkan event "auth:logout" dari api.js interceptor
+  // dan navigasi via React Router (no full reload, preserve toast/state).
+  useEffect(() => {
+    function handleLogout() {
+      toast.error("Sesi Anda telah berakhir. Silakan login kembali.");
+      navigate("/", { replace: true });
+    }
+    window.addEventListener("auth:logout", handleLogout);
+    return () => window.removeEventListener("auth:logout", handleLogout);
+  }, [navigate]);
+
   return (
     <>
       <Toaster

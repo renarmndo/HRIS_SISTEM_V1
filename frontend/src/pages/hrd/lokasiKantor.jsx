@@ -16,12 +16,12 @@ import {
 } from "lucide-react";
 import useLokasiKantor from "../../hooks/hrd/useLokasi.hook";
 
-// --- Leaflet Imports & Fix Icon ---
 import { MapContainer, TileLayer, Marker, Circle, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
+import ConfirmationModal from "../../components/ConfirmationModal";
 
 let DefaultIcon = L.icon({
   iconUrl: icon,
@@ -115,6 +115,7 @@ const InputGroup = ({
 // --- COMPONENT UTAMA ---
 const LokasiKantorPage = () => {
   const [isEditing, setIsEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // --- 1. STATE FORM DATA ---
   const [formData, setFormData] = useState({
@@ -169,7 +170,14 @@ const LokasiKantorPage = () => {
   };
 
   const handleCreate = async () => {
-    await useCreateLokasi(formData);
+    const payload = {
+      ...formData,
+      latitude: parseFloat(formData.latitude),
+      longitude: parseFloat(formData.longitude),
+      radius_absen_meter: parseInt(formData.radius_absen_meter) || 0,
+    };
+    await useCreateLokasi(payload);
+    setIsEditing(false);
   };
 
   const handleSave = async () => {
@@ -199,9 +207,16 @@ const LokasiKantorPage = () => {
   };
 
   const handleDelete = () => {
-    // Implementasi delete sesuai kebutuhan hook Anda
-    if (window.confirm("Hapus data lokasi?")) {
+    // SECURITY (Task 5.1): ganti window.confirm dengan ConfirmationModal
+    setConfirmDelete(true);
+  };
+
+  const doDelete = async () => {
+    try {
       // panggil fungsi delete dari hook
+      setConfirmDelete(false);
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -326,13 +341,13 @@ const LokasiKantorPage = () => {
                   Batal
                 </button>
                 <button
-                  onClick={handleSave}
+                  onClick={lokasiKantor?.id ? handleSave : handleCreate}
                   className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 shadow-sm flex justify-center items-center gap-2"
                 >
                   <Save className="w-4 h-4" /> Simpan
                 </button>
               </div>
-            ) : (
+            ) : lokasiKantor?.id ? (
               <div className="w-full flex justify-between gap-3">
                 <button
                   onClick={handleDelete}
@@ -345,6 +360,15 @@ const LokasiKantorPage = () => {
                   className="px-6 py-2 bg-white border border-gray-300 text-gray-700 hover:border-indigo-500 hover:text-indigo-600 rounded-md text-sm font-medium shadow-sm flex items-center gap-2 ml-auto"
                 >
                   <Edit2 className="w-4 h-4" /> Edit
+                </button>
+              </div>
+            ) : (
+              <div className="w-full flex justify-end gap-3">
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 shadow-sm flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" /> Buat Data Kantor
                 </button>
               </div>
             )}
@@ -365,16 +389,18 @@ const LokasiKantorPage = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <MapUpdater center={mapCenter} />
-            <Circle
-              center={mapCenter}
-              pathOptions={{
-                fillColor: "#6366f1",
-                color: "#4f46e5",
-                weight: 1,
-                fillOpacity: 0.2,
-              }}
-              radius={activeRadius || 0}
-            />
+            {Number.isFinite(activeRadius) && activeRadius > 0 && (
+              <Circle
+                center={mapCenter}
+                pathOptions={{
+                  fillColor: "#6366f1",
+                  color: "#4f46e5",
+                  weight: 1,
+                  fillOpacity: 0.2,
+                }}
+                radius={activeRadius}
+              />
+            )}
             <DraggableMarker
               position={mapCenter}
               setFormData={setFormData}
@@ -390,11 +416,23 @@ const LokasiKantorPage = () => {
               </span>
             </div>
             <div className="font-mono font-bold text-gray-800 bg-gray-100 px-2 py-1 rounded">
-              {activeLat.toFixed(6)}, {activeLng.toFixed(6)}
+              {Number.isFinite(activeLat) && Number.isFinite(activeLng)
+                ? `${activeLat.toFixed(6)}, ${activeLng.toFixed(6)}`
+                : "—"}
             </div>
           </div>
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={doDelete}
+        title="Hapus Data Lokasi"
+        message="Apakah Anda yakin ingin menghapus data lokasi kantor ini? Tindakan ini tidak dapat dibatalkan."
+        confirmText="Ya, Hapus"
+        type="danger"
+      />
     </div>
   );
 };

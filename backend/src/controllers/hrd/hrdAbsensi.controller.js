@@ -331,8 +331,9 @@ export default class HrdAbsensiController {
       // Hitung tanggal awal dan akhir bulan
       const startOfMonth = new Date(tahunTarget, bulanTarget - 1, 1);
       const endOfMonth = new Date(tahunTarget, bulanTarget, 0);
-      const startDate = startOfMonth.toISOString().split("T")[0];
-      const endDate = endOfMonth.toISOString().split("T")[0];
+      // FIX (Task 3.21): gunakan format lokal agar tidak shift UTC
+      const startDate = formatLocalDate(startOfMonth);
+      const endDate = formatLocalDate(endOfMonth);
 
       // Ambil data absensi
       const absensiList = await AbsensiKaryawanModel.findAll({
@@ -416,4 +417,12 @@ export default class HrdAbsensiController {
       });
     }
   }
+}
+
+// FIX (Task 3.21): helper format YYYY-MM-DD lokal
+function formatLocalDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }

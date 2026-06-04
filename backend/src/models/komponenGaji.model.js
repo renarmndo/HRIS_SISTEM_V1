@@ -28,6 +28,17 @@ KomponenGajiModel.init(
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
       defaultValue: 0,
+      // SECURITY (Task 4.6): validasi min/max di model
+      validate: {
+        min: {
+          args: [0],
+          msg: "nilai_default tidak boleh negatif",
+        },
+        max: {
+          args: [999999999999.99],
+          msg: "nilai_default terlalu besar",
+        },
+      },
     },
     keterangan: {
       type: DataTypes.TEXT,

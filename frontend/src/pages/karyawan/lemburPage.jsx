@@ -13,6 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
+import ConfirmationModal from "../../components/ConfirmationModal";
 import {
   createLembur,
   getMyLembur,
@@ -52,6 +53,7 @@ export default function LemburPage() {
     keterangan: "",
   });
   const [totalJam, setTotalJam] = useState(0);
+  const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null });
 
   useEffect(() => {
     fetchLemburData();
@@ -81,8 +83,15 @@ export default function LemburPage() {
     try {
       setLoading(true);
       const response = await getMyLembur();
-      setLemburList(response.data);
-      setStats(response.stats || {});
+      // response is the body { msg, data, stats }; unwrap defensively
+      const list = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response)
+          ? response
+          : [];
+      const stats = response?.stats ?? {};
+      setLemburList(list);
+      setStats(stats);
     } catch (error) {
       toast.error(error.response?.data?.msg || "Gagal mengambil data lembur");
     } finally {
@@ -112,14 +121,20 @@ export default function LemburPage() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Yakin ingin menghapus pengajuan lembur ini?")) {
-      try {
-        await deleteLembur(id);
-        toast.success("Berhasil menghapus pengajuan lembur");
-        fetchLemburData();
-      } catch (error) {
-        toast.error(error.response?.data?.msg || "Gagal menghapus lembur");
-      }
+    // SECURITY (Task 5.1): gunakan ConfirmationModal, bukan window.confirm
+    setConfirmDelete({ open: true, id });
+  };
+
+  const doDelete = async () => {
+    const id = confirmDelete.id;
+    setConfirmDelete({ open: false, id: null });
+    try {
+      await deleteLembur(id);
+      toast.success("Berhasil menghapus pengajuan lembur");
+      fetchLemburData();
+    } catch (error) {
+      toast.error(error.response?.data?.msg || "Gagal menghapus lembur");
+    }
     }
   };
 
@@ -291,7 +306,7 @@ export default function LemburPage() {
                   </td>
                 </tr>
               ) : (
-                lemburList.map((item) => (
+                (Array.isArray(lemburList) ? lemburList : []).map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {new Date(item.tanggal).toLocaleDateString("id-ID")}
@@ -336,7 +351,6 @@ export default function LemburPage() {
                   </tr>
                 ))
               )}
-            </tbody>
           </table>
         </div>
       </div>
@@ -438,6 +452,16 @@ export default function LemburPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmationModal
+        isOpen={confirmDelete.open}
+        onClose={() => setConfirmDelete({ open: false, id: null })}
+        onConfirm={doDelete}
+        title="Hapus Pengajuan Lembur"
+        message="Yakin ingin menghapus pengajuan lembur ini? Tindakan tidak dapat dibatalkan."
+        confirmText="Ya, Hapus"
+        type="danger"
+      />
     </div>
   );
 }

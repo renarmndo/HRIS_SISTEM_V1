@@ -131,9 +131,10 @@ export default function useAbsensiHook() {
 
     try {
       const response = await useGetAbsensi();
-      console.log("INI DATA ABSENSI", response.data);
-      setAbsensiMasuk(response.data);
-      return response.data;
+      // response is the body { msg, data: {...} }; unwrap defensively
+      const payload = response?.data?.data ?? response?.data ?? null;
+      setAbsensiMasuk(payload);
+      return payload;
     } catch (error) {
       setAbsensiError(
         error.response?.data?.msg || "Terjadi Kesalahan Pada Server",
@@ -151,9 +152,9 @@ export default function useAbsensiHook() {
 
     try {
       const response = await useGetAbsensiHariIni();
-      console.log("INI DATA ABSENSI HARI INI", response.data);
-      setAbsensiHariIni(response.data);
-      return response.data;
+      const payload = response?.data?.data ?? response?.data ?? null;
+      setAbsensiHariIni(payload);
+      return payload;
     } catch (error) {
       console.log(error);
       setAbsensiError(
@@ -165,14 +166,17 @@ export default function useAbsensiHook() {
     }
   };
 
-  const fetchDataAbsensiMungguan = async () => {
+  const fetchDataAbsensiMingguan = async () => {
     setAbsensiLoading(true);
     setAbsensiError(null);
     try {
       const response = await useGetAbsensiMingguan();
-      console.log("INI DATA ABSENSI MINGGUAN", response.data);
-      setAbsensiMingguan(response.data);
-      return response.data;
+      // response is the body { msg, data: [...] }; unwrap defensively
+      const payload = Array.isArray(response?.data)
+        ? response.data
+        : response?.data?.data ?? [];
+      setAbsensiMingguan(payload);
+      return payload;
     } catch (error) {
       setAbsensiError(
         error.response?.data?.msg || "Terjadi Kesalahan Pada Server",
@@ -191,7 +195,7 @@ export default function useAbsensiHook() {
     handleAbsensiKeluar,
     fetchDataAbsensi,
     fetchDataAbsensiHariIni,
-    fetchDataAbsensiMungguan,
+    fetchDataAbsensiMingguan,
     absensiMingguan,
   };
 }

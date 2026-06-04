@@ -1,5 +1,6 @@
 import UsersModel from "../../models/users.model.js";
 import KaryawanModel from "../../models/karyawan.model.js";
+import audit from "../../utils/auditLogger.js";
 
 export default class KelolaKaryawanController {
   // Get semua users (untuk halaman Data Users - manage akun)
@@ -78,9 +79,22 @@ export default class KelolaKaryawanController {
       const { id } = req.params; // user_id
       const { gaji_pokok } = req.body;
 
-      if (gaji_pokok === undefined) {
+      if (gaji_pokok === undefined || gaji_pokok === null) {
         return res.status(400).json({
           msg: "Gaji pokok wajib diisi",
+        });
+      }
+
+      // SECURITY (Task 2.13 + 4.10): parse and reject negative/NaN values
+      const parsedGaji = parseFloat(gaji_pokok);
+      if (!Number.isFinite(parsedGaji)) {
+        return res.status(400).json({
+          msg: "Gaji pokok harus berupa angka",
+        });
+      }
+      if (parsedGaji < 0) {
+        return res.status(400).json({
+          msg: "Gaji pokok tidak boleh negatif",
         });
       }
 
@@ -96,7 +110,17 @@ export default class KelolaKaryawanController {
       }
 
       await karyawan.update({
-        gaji_pokok: parseFloat(gaji_pokok) || 0,
+        gaji_pokok: parsedGaji,
+      });
+
+      // FIX (Task 3.4): audit log perubahan gaji_pokok.
+      await audit({
+        req,
+        entity: "karyawan.gaji_pokok",
+        entityId: karyawan.id,
+        action: "update",
+        before: { gaji_pokok: parseFloat(karyawan._previousDataValues?.gaji_pokok) || 0 },
+        after: { gaji_pokok: parsedGaji },
       });
 
       return res.status(200).json({

@@ -213,6 +213,7 @@ export default function KelolaSlipGaji() {
       } ${tahun}? Slip yang sudah final tidak akan di-generate ulang.`,
       onConfirm: async () => {
         setConfirmModal((prev) => ({ ...prev, loading: true }));
+        setGenerating(true);
         try {
           const response = await generateSlipGaji(bulan, tahun);
           toast.success(response.msg || "Berhasil generate slip gaji");
@@ -221,6 +222,8 @@ export default function KelolaSlipGaji() {
         } catch (error) {
           toast.error(error.response?.data?.msg || "Gagal generate slip gaji");
           setConfirmModal((prev) => ({ ...prev, loading: false }));
+        } finally {
+          setGenerating(false);
         }
       },
       loading: false,
@@ -298,8 +301,10 @@ export default function KelolaSlipGaji() {
   // Summary stats
   const totalDraft = slipList.filter((s) => s.status === "draft").length;
   const totalFinal = slipList.filter((s) => s.status === "final").length;
+  // FIX (Task 2.9): parseFloat on null/undefined returns NaN and poisons the sum.
+  // Use `|| 0` fallback to guard against missing or invalid values.
   const totalGaji = slipList.reduce(
-    (acc, s) => acc + parseFloat(s.gaji_bersih),
+    (acc, s) => acc + (parseFloat(s.gaji_bersih) || 0),
     0,
   );
 

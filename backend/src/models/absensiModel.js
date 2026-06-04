@@ -74,7 +74,7 @@ AbsensiKaryawanModel.init(
       type: DataTypes.DECIMAL(8, 2),
       allowNull: true,
     },
-    disctance_keluar: {
+    distance_keluar: {
       type: DataTypes.DECIMAL(8, 2),
       allowNull: true,
     },
@@ -107,5 +107,12 @@ AbsensiKaryawanModel.init(
     modelName: "absensi_karyawan",
     tableName: "m_absensi_karyawan",
     timestamps: true,
+    indexes: [
+      {
+        name: "uniq_absensi_karyawan_tanggal",
+        unique: true,
+        fields: ["karyawan_id", "tanggal"],
+      },
+    ],
   }
 );

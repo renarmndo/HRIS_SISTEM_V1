@@ -17,6 +17,7 @@ import {
   updateKomponenGaji,
   deleteKomponenGaji,
 } from "../../services/hrd/gajiService";
+import ConfirmationModal from "../../components/ConfirmationModal";
 
 // Modal Component
 const Modal = ({ isOpen, onClose, title, children }) => {
@@ -52,6 +53,7 @@ export default function KelolaKomponenGaji() {
   const [loading, setLoading] = useState(false);
   const [komponenList, setKomponenList] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null });
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedData, setSelectedData] = useState(null);
   const [filterTipe, setFilterTipe] = useState("");
@@ -123,15 +125,20 @@ export default function KelolaKomponenGaji() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus komponen ini?")) {
-      try {
-        await deleteKomponenGaji(id);
-        toast.success("Berhasil menghapus komponen gaji");
-        fetchData();
-      } catch (error) {
-        toast.error("Gagal menghapus komponen gaji");
-      }
+  const handleDelete = (id) => {
+    // SECURITY (Task 5.1): ConfirmationModal, bukan window.confirm
+    setConfirmDelete({ open: true, id });
+  };
+
+  const doDelete = async () => {
+    const id = confirmDelete.id;
+    setConfirmDelete({ open: false, id: null });
+    try {
+      await deleteKomponenGaji(id);
+      toast.success("Berhasil menghapus komponen gaji");
+      fetchData();
+    } catch (error) {
+      toast.error("Gagal menghapus komponen gaji");
     }
   };
 
@@ -396,6 +403,16 @@ export default function KelolaKomponenGaji() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmationModal
+        isOpen={confirmDelete.open}
+        onClose={() => setConfirmDelete({ open: false, id: null })}
+        onConfirm={doDelete}
+        title="Hapus Komponen Gaji"
+        message="Apakah Anda yakin ingin menghapus komponen ini? Tindakan tidak dapat dibatalkan."
+        confirmText="Ya, Hapus"
+        type="danger"
+      />
     </div>
   );
 }

@@ -17,7 +17,6 @@ export default function useFaceProfile() {
 
     try {
       const response = await getFace(); // ini langsung response, bukan axios object
-      console.log("INI response FETCH PROFILE", response.data);
       setFaceProfile(response.data);
       return response;
     } catch (error) {

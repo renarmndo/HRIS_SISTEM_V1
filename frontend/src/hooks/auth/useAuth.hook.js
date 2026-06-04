@@ -14,7 +14,6 @@ export default function useAuth() {
       setError(null);
 
       const response = await login(data);
-      console.log("INI RESPONSE LOGIN", response);
 
       const token = response.token;
       const role = response.data.role;

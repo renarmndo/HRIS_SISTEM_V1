@@ -4,6 +4,7 @@ import KaryawanFaceModel from "../../models/face_karyawanModel.js";
 import KaryawanModel from "../../models/karyawan.model.js";
 import LokasiKantorModel from "../../models/lokasiKantor.model.js";
 import { lokasiDistance } from "../../utils/lokasiDistance.js";
+import { isValidLatitude, isValidLongitude } from "../../utils/validators.js";
 import { Op } from "sequelize";
 import moment from "moment";
 
@@ -23,6 +24,13 @@ export default class AbsensiController {
       if (!face_embedding_masuk) {
         return res.status(400).json({
           msg: "Absensi Gagal, Silahkan absensi ulang",
+        });
+      }
+
+      // SECURITY (Task 4.7): validasi koordinat GPS berada dalam range valid
+      if (!isValidLatitude(latitude_masuk) || !isValidLongitude(longitude_masuk)) {
+        return res.status(400).json({
+          msg: "Koordinat GPS tidak valid (latitude -90..90, longitude -180..180)",
         });
       }
 
@@ -85,7 +93,9 @@ export default class AbsensiController {
       }
 
       // Data jam masuk kantor
-      const lokasiKantor = await LokasiKantorModel.findOne();
+      const lokasiKantor = await LokasiKantorModel.findOne({
+        order: [["createdAt", "desc"]],
+      });
 
       if (!lokasiKantor) {
         return res.status(400).json({
@@ -151,14 +161,19 @@ export default class AbsensiController {
         longitude_masuk,
         face_embedding_masuk,
         distance_masuk: distance,
-        validasi_lokasi_masuk: true, // Atau gunakan variable validasiLokasiMasuk jika ingin dinamis
+        // SECURITY (Task 2.2): use real validation result, not hardcoded true
+        validasi_lokasi_masuk: validasiLokasiMasuk,
         menit_terlambat: menitTerlambat,
         status: statusKehadiran,
-        keterangan: "Tanpa Keterangan",
+        keterangan: validasiLokasiMasuk
+          ? "Tanpa Keterangan"
+          : `Absen di luar radius (${parseFloat(jarak.toFixed(2))}m)`,
       });
 
       return res.status(201).json({
-        msg: "Absensi Masuk Berhasil",
+        msg: validasiLokasiMasuk
+          ? "Absensi Masuk Berhasil"
+          : "Absensi Masuk Tercatat, Di Luar Radius Kantor",
         data: {
           jam: jamAbsen,
           status: statusKehadiran,
@@ -186,6 +201,13 @@ export default class AbsensiController {
       if (!face_embedding_keluar) {
         return res.status(400).json({
           msg: "Absensi Keluar Gagal, Data wajah tidak terdeteksi",
+        });
+      }
+
+      // SECURITY (Task 4.7): validasi koordinat GPS
+      if (!isValidLatitude(latitude_keluar) || !isValidLongitude(longitude_keluar)) {
+        return res.status(400).json({
+          msg: "Koordinat GPS tidak valid (latitude -90..90, longitude -180..180)",
         });
       }
 
@@ -249,7 +271,9 @@ export default class AbsensiController {
       }
 
       // 6. Validasi Lokasi (Opsional: Tergantung kebijakan, apakah pulang harus di kantor?)
-      const lokasiKantor = await LokasiKantorModel.findOne();
+      const lokasiKantor = await LokasiKantorModel.findOne({
+        order: [["createdAt", "desc"]],
+      });
       if (!lokasiKantor) {
         return res.status(400).json({ msg: "Data lokasi kantor belum diatur" });
       }
@@ -349,7 +373,9 @@ export default class AbsensiController {
         });
       }
 
-      const lokasiKantor = await LokasiKantorModel.findOne();
+      const lokasiKantor = await LokasiKantorModel.findOne({
+        order: [["createdAt", "desc"]],
+      });
       if (!lokasiKantor) {
         return res.status(400).json({
           msg: "Konfigurasi Kantor belum di setting",
@@ -376,9 +402,9 @@ export default class AbsensiController {
       sundayDate.setDate(mondayDate.getDate() + 6);
       sundayDate.setHours(23, 59, 59, 999); // Set to end of day
 
-      // Format tanggal untuk query (gunakan format yang sama dengan database)
-      const startOfWeek = mondayDate.toISOString().split("T")[0];
-      const endOfWeek = sundayDate.toISOString().split("T")[0];
+      // FIX (Task 3.21): format YYYY-MM-DD dengan helper lokal (tanpa UTC shift)
+      const startOfWeek = formatLocalDate(mondayDate);
+      const endOfWeek = formatLocalDate(sundayDate);
 
       // DEBUG: Tampilkan tanggal range
       console.log("Range Minggu:", startOfWeek, "s/d", endOfWeek);
@@ -478,6 +504,12 @@ export default class AbsensiController {
                   : absenToday.status
               : null,
             lateMinutes: lateMinutes,
+            // FIX (Task 3.10): expose hasil validasi lokasi dari DB
+            // (sebelumnya hanya dikirim di response create, tidak di get)
+            validasi_lokasi_masuk: absenToday?.validasi_lokasi_masuk ?? null,
+            validasi_lokasi_keluar: absenToday?.validasi_lokasi_keluar ?? null,
+            distance_masuk: absenToday?.distance_masuk ?? null,
+            distance_keluar: absenToday?.distance_keluar ?? null,
           },
           mingguIni: {
             onTime: stats.onTime,
@@ -498,7 +530,7 @@ export default class AbsensiController {
     try {
       const user_id = req.user.id;
 
-      // chek apakah user id ini ada
+      // cek apakah user id ini ada
       const karyawan = await KaryawanModel.findOne({
         where: {
           user_id: user_id,
@@ -652,9 +684,9 @@ export default class AbsensiController {
       const startOfMonth = new Date(tahunTarget, bulanTarget - 1, 1);
       const endOfMonth = new Date(tahunTarget, bulanTarget, 0);
 
-      // Format tanggal untuk query
-      const startDate = startOfMonth.toISOString().split("T")[0];
-      const endDate = endOfMonth.toISOString().split("T")[0];
+      // FIX (Task 3.21): gunakan formatLocalDate untuk hindari UTC shift
+      const startDate = formatLocalDate(startOfMonth);
+      const endDate = formatLocalDate(endOfMonth);
 
       // Ambil data absensi bulan tersebut
       const absensiList = await AbsensiKaryawanModel.findAll({
@@ -730,4 +762,15 @@ export default class AbsensiController {
       });
     }
   }
+}
+
+// FIX (Task 3.9 / 3.21): format YYYY-MM-DD menggunakan komponen tanggal
+// lokal (bukan toISOString()) agar tidak geser tanggal di zona +07:00.
+// toISOString() mengonversi ke UTC, sehingga new Date(2024,0,1) di WIB
+// menjadi "2023-12-31".
+function formatLocalDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }

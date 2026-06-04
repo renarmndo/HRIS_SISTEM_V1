@@ -13,11 +13,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { getKaryawan, updateGajiPokok } from "../../services/hrd/addKaryawan";
+import useDebounce from "../../hooks/useDebounce";
 
 export default function DataKaryawan() {
   const [loading, setLoading] = useState(false);
   const [karyawanData, setKaryawanData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  // FIX (Task 5.15): debounce search 300ms
+  const debouncedSearch = useDebounce(searchTerm, 300);
 
   // Modal state
   const [isGajiModalOpen, setIsGajiModalOpen] = useState(false);
@@ -46,10 +49,10 @@ export default function DataKaryawan() {
   // Filter search
   const filteredData = karyawanData.filter(
     (k) =>
-      k.nama_lengkap?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      k.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      k.departement?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      k.jabatan?.toLowerCase().includes(searchTerm.toLowerCase())
+      k.nama_lengkap?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      k.username?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      k.departement?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      k.jabatan?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   // Handler untuk edit gaji
@@ -260,15 +263,26 @@ export default function DataKaryawan() {
               <input
                 type="number"
                 value={gajiFormData.gaji_pokok}
-                onChange={(e) =>
+                onChange={(e) => {
+                  // SECURITY (Task 2.13): reject negative values; min="0"
+                  // attribute only constrains the spinner, not typed input.
+                  const raw = e.target.value;
+                  const parsed = parseFloat(raw);
+                  const safe = Number.isFinite(parsed) && parsed >= 0
+                    ? parsed
+                    : 0;
                   setGajiFormData({
                     ...gajiFormData,
-                    gaji_pokok: parseFloat(e.target.value) || 0,
-                  })
-                }
+                    gaji_pokok: safe,
+                  });
+                  if (raw !== "" && (isNaN(parsed) || parsed < 0)) {
+                    toast.error("Gaji pokok tidak boleh negatif");
+                  }
+                }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500"
                 placeholder="0"
                 min="0"
+                step="any"
               />
               <p className="text-xs text-gray-400 mt-1">
                 Preview: {formatCurrency(gajiFormData.gaji_pokok)}

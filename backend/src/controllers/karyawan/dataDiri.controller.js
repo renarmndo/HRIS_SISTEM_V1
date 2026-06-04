@@ -12,7 +12,7 @@ export default class DataDiriKaryawan {
         });
       }
 
-      //   chek apakah si karyawan id ini ada
+      //   cek apakah si karyawan id ini ada
       const karyawan = await KaryawanModel.findOne({
         where: {
           user_id: user_id,
@@ -59,7 +59,7 @@ export default class DataDiriKaryawan {
         });
       }
 
-      //   chek apakah si userid ini ada
+      //   cek apakah si userid ini ada
       const karyawanProfile = await KaryawanModel.findOne({
         where: {
           user_id: user_id,
@@ -112,7 +112,7 @@ export default class DataDiriKaryawan {
         });
       }
 
-      //   chek apakah data ada
+      //   cek apakah data ada
       const profileUser = await KaryawanModel.findOne({
         where: {
           user_id,

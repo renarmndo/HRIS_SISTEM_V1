@@ -5,15 +5,20 @@ import KaryawanModel from "../../models/karyawan.model.js";
 import AbsensiKaryawanModel from "../../models/absensiModel.js";
 import KuotaCutiModel from "../../models/kuotaCutiModel.js";
 import LemburModel from "../../models/lembur.model.js";
+import sequelize from "../../config/sequelize.js";
 import { Op } from "sequelize";
+import audit from "../../utils/auditLogger.js";
+import { parseBulan, parseTahun, isValidUUID } from "../../utils/validators.js";
 
 export default class SlipGajiController {
   // HRD: Generate slip gaji untuk semua karyawan bulan tertentu
   static async generateSlipGaji(req, res) {
+    const transaction = await sequelize.transaction();
     try {
       const { bulan, tahun } = req.body;
 
       if (!bulan || !tahun) {
+        await transaction.rollback();
         return res.status(400).json({
           msg: "Bulan dan tahun wajib diisi",
         });
@@ -22,9 +27,11 @@ export default class SlipGajiController {
       // Ambil semua karyawan aktif
       const karyawanList = await KaryawanModel.findAll({
         where: { is_active: true },
+        transaction,
       });
 
       if (karyawanList.length === 0) {
+        await transaction.rollback();
         return res.status(404).json({
           msg: "Tidak ada karyawan aktif",
         });
@@ -33,6 +40,7 @@ export default class SlipGajiController {
       // Ambil komponen gaji aktif
       const komponenList = await KomponenGajiModel.findAll({
         where: { is_active: true },
+        transaction,
       });
 
       // Ambil kuota cuti bulan ini (untuk total hari kerja)
@@ -42,15 +50,17 @@ export default class SlipGajiController {
           tahun: parseInt(tahun),
           is_active: true,
         },
+        transaction,
       });
 
       const totalHariKerja = kuotaCuti ? kuotaCuti.total_hari_kerja : 22;
 
-      // Tanggal range untuk query absensi
+      // FIX (Task 3.9): gunakan helper localDate() untuk format YYYY-MM-DD
+      // tanpa konversi UTC yang dapat menggeser tanggal 1-2 hari.
       const startOfMonth = new Date(parseInt(tahun), parseInt(bulan) - 1, 1);
       const endOfMonth = new Date(parseInt(tahun), parseInt(bulan), 0);
-      const startDate = startOfMonth.toISOString().split("T")[0];
-      const endDate = endOfMonth.toISOString().split("T")[0];
+      const startDate = formatLocalDate(startOfMonth);
+      const endDate = formatLocalDate(endOfMonth);
 
       const slipGajiResults = [];
 
@@ -62,6 +72,7 @@ export default class SlipGajiController {
             bulan: parseInt(bulan),
             tahun: parseInt(tahun),
           },
+          transaction,
         });
 
         // Jika sudah final, skip
@@ -75,6 +86,7 @@ export default class SlipGajiController {
             karyawan_id: karyawan.id,
             tanggal: { [Op.between]: [startDate, endDate] },
           },
+          transaction,
         });
 
         // Hitung statistik absensi
@@ -123,6 +135,7 @@ export default class SlipGajiController {
             tanggal: { [Op.between]: [startDate, endDate] },
             status: "approved",
           },
+          transaction,
         });
 
         // Hitung total jam lembur
@@ -185,54 +198,66 @@ export default class SlipGajiController {
         }
 
         const totalPendapatan = gajiPokok + totalBonus;
-        const gajiBersih = totalPendapatan - totalPotongan;
+        const gajiBersihRaw = totalPendapatan - totalPotongan;
+        // FIX (Task 3.6): gaji_bersih tidak boleh negatif (floor 0).
+        const gajiBersih = Math.max(0, gajiBersihRaw);
 
         // Create atau Update slip gaji
         if (slip) {
           // Update existing slip
-          await slip.update({
-            total_hari_kerja: totalHariKerja,
-            total_hadir: totalHadir,
-            total_terlambat: stats.terlambat,
-            total_absen: totalAbsen,
-            total_cuti: totalCuti,
-            total_lembur_jam: totalLemburJam,
-            gaji_pokok: gajiPokok,
-            total_pendapatan: totalPendapatan,
-            total_potongan: totalPotongan,
-            gaji_bersih: gajiBersih,
-          });
+          await slip.update(
+            {
+              total_hari_kerja: totalHariKerja,
+              total_hadir: totalHadir,
+              total_terlambat: stats.terlambat,
+              total_absen: totalAbsen,
+              total_cuti: totalCuti,
+              total_lembur_jam: totalLemburJam,
+              gaji_pokok: gajiPokok,
+              total_pendapatan: totalPendapatan,
+              total_potongan: totalPotongan,
+              gaji_bersih: gajiBersih,
+            },
+            { transaction },
+          );
 
           // Hapus detail lama
           await DetailSlipGajiModel.destroy({
             where: { slip_gaji_id: slip.id },
+            transaction,
           });
         } else {
           // Create new slip
-          slip = await SlipGajiModel.create({
-            karyawan_id: karyawan.id,
-            bulan: parseInt(bulan),
-            tahun: parseInt(tahun),
-            total_hari_kerja: totalHariKerja,
-            total_hadir: totalHadir,
-            total_terlambat: stats.terlambat,
-            total_absen: totalAbsen,
-            total_cuti: totalCuti,
-            total_lembur_jam: totalLemburJam,
-            gaji_pokok: gajiPokok,
-            total_pendapatan: totalPendapatan,
-            total_potongan: totalPotongan,
-            gaji_bersih: gajiBersih,
-            status: "draft",
-          });
+          slip = await SlipGajiModel.create(
+            {
+              karyawan_id: karyawan.id,
+              bulan: parseInt(bulan),
+              tahun: parseInt(tahun),
+              total_hari_kerja: totalHariKerja,
+              total_hadir: totalHadir,
+              total_terlambat: stats.terlambat,
+              total_absen: totalAbsen,
+              total_cuti: totalCuti,
+              total_lembur_jam: totalLemburJam,
+              gaji_pokok: gajiPokok,
+              total_pendapatan: totalPendapatan,
+              total_potongan: totalPotongan,
+              gaji_bersih: gajiBersih,
+              status: "draft",
+            },
+            { transaction },
+          );
         }
 
         // Create detail items
         for (const item of detailItems) {
-          await DetailSlipGajiModel.create({
-            slip_gaji_id: slip.id,
-            ...item,
-          });
+          await DetailSlipGajiModel.create(
+            {
+              slip_gaji_id: slip.id,
+              ...item,
+            },
+            { transaction },
+          );
         }
 
         slipGajiResults.push({
@@ -241,11 +266,20 @@ export default class SlipGajiController {
         });
       }
 
+      // Commit hanya jika SEMUA slip berhasil di-generate.
+      await transaction.commit();
+
       return res.status(201).json({
         msg: `Berhasil generate ${slipGajiResults.length} slip gaji`,
         data: slipGajiResults,
       });
     } catch (error) {
+      // Auto-rollback bila transaksi masih aktif.
+      try {
+        await transaction.rollback();
+      } catch (rbErr) {
+        console.error("Rollback gagal:", rbErr.message);
+      }
       console.error(error);
       return res.status(500).json({
         msg: "Terjadi kesalahan pada server",
@@ -259,8 +293,21 @@ export default class SlipGajiController {
     try {
       const { bulan, tahun, status } = req.query;
 
-      const bulanTarget = bulan ? parseInt(bulan) : new Date().getMonth() + 1;
-      const tahunTarget = tahun ? parseInt(tahun) : new Date().getFullYear();
+      // SECURITY (Task 4.5): validasi parseInt(NaN) → return 400
+      const bulanTarget =
+        bulan === undefined || bulan === ""
+          ? new Date().getMonth() + 1
+          : parseBulan(bulan);
+      if (bulan === "" || bulan === undefined ? false : Number.isNaN(bulanTarget)) {
+        return res.status(400).json({ msg: "Bulan harus antara 1-12" });
+      }
+      const tahunTarget =
+        tahun === undefined || tahun === ""
+          ? new Date().getFullYear()
+          : parseTahun(tahun);
+      if (tahun === "" || tahun === undefined ? false : Number.isNaN(tahunTarget)) {
+        return res.status(400).json({ msg: "Tahun tidak valid" });
+      }
 
       const whereClause = {
         bulan: bulanTarget,
@@ -302,6 +349,10 @@ export default class SlipGajiController {
     try {
       const { id } = req.params;
 
+      if (!isValidUUID(id)) {
+        return res.status(400).json({ msg: "ID slip gaji tidak valid" });
+      }
+
       const slip = await SlipGajiModel.findByPk(id, {
         include: [
           {
@@ -337,19 +388,31 @@ export default class SlipGajiController {
 
   // HRD: Update slip gaji (tambah/edit komponen manual)
   static async update(req, res) {
+    // FIX (Task 3.2): wrap destroy + recreate dalam transaction
+    // agar atomic (gagal satu = rollback semua).
+    const transaction = await sequelize.transaction();
     try {
       const { id } = req.params;
       const { total_lembur_jam, catatan, details } = req.body;
 
-      const slip = await SlipGajiModel.findByPk(id);
+      // SECURITY (Task 4.2): UUID validation
+      if (!isValidUUID(id)) {
+        await transaction.rollback();
+        return res.status(400).json({ msg: "ID slip gaji tidak valid" });
+      }
+
+      const slip = await SlipGajiModel.findByPk(id, { transaction });
 
       if (!slip) {
+        await transaction.rollback();
         return res.status(404).json({
           msg: "Slip gaji tidak ditemukan",
         });
       }
 
+      // FIX (Task 3.3): tolak edit jika status sudah final.
       if (slip.status === "final") {
+        await transaction.rollback();
         return res.status(400).json({
           msg: "Slip gaji sudah final dan tidak dapat diubah",
         });
@@ -368,42 +431,112 @@ export default class SlipGajiController {
         // Hapus detail lama
         await DetailSlipGajiModel.destroy({
           where: { slip_gaji_id: slip.id },
+          transaction,
         });
 
         let totalBonus = 0;
         let totalPotongan = 0;
 
-        // Create detail baru
+        // FIX (Task 3.8): drop item dengan nilai 0 atau tidak valid;
+        // audit trail disimpan via response.data.auditTrail di bawah.
+        const auditTrail = [];
         for (const item of details) {
-          await DetailSlipGajiModel.create({
-            slip_gaji_id: slip.id,
-            komponen_id: item.komponen_id || null,
-            nama_komponen: item.nama_komponen,
-            tipe: item.tipe,
-            nilai: item.nilai,
-            keterangan: item.keterangan,
-          });
+          const nilaiRaw = parseFloat(item.nilai);
+          const nilai = Number.isFinite(nilaiRaw) ? nilaiRaw : 0;
+
+          if (nilai === 0) {
+            auditTrail.push({
+              action: "skipped_zero",
+              nama_komponen: item.nama_komponen,
+              tipe: item.tipe,
+              original: item.nilai,
+            });
+            continue;
+          }
+
+          await DetailSlipGajiModel.create(
+            {
+              slip_gaji_id: slip.id,
+              komponen_id: item.komponen_id || null,
+              nama_komponen: item.nama_komponen,
+              tipe: item.tipe,
+              nilai: nilai,
+              keterangan: item.keterangan,
+            },
+            { transaction },
+          );
 
           if (item.tipe === "bonus") {
-            totalBonus += parseFloat(item.nilai);
+            totalBonus += nilai;
           } else {
-            totalPotongan += parseFloat(item.nilai);
+            totalPotongan += nilai;
           }
         }
 
         // Recalculate totals
-        slip.total_pendapatan = parseFloat(slip.gaji_pokok) + totalBonus;
+        const gajiPokok = parseFloat(slip.gaji_pokok) || 0;
+        const totalPendapatan = gajiPokok + totalBonus;
+        // FIX (Task 3.5): recompute gaji_bersih saat details berubah.
+        // FIX (Task 3.6): gaji_bersih floor 0 (tidak boleh negatif).
+        const gajiBersihRaw = totalPendapatan - totalPotongan;
+        const gajiBersih = Math.max(0, gajiBersihRaw);
+
+        slip.total_pendapatan = totalPendapatan;
         slip.total_potongan = totalPotongan;
-        slip.gaji_bersih = slip.total_pendapatan - slip.total_potongan;
+        slip.gaji_bersih = gajiBersih;
+
+        // FIX (Task 3.5): jika user mengirim total_lembur_jam (tanpa details),
+        // recompute gaji_bersih dari total_pendapatan - total_potongan saat ini
+        // sehingga konsistensi dengan komponen lembur per_jam di-generate ulang
+        // pada generateSlipGaji berikutnya.
+        if (total_lembur_jam !== undefined && !Array.isArray(details)) {
+          const existingPotongan = parseFloat(slip.total_potongan) || 0;
+          const newPendapatan = gajiPokok + parseFloat(total_lembur_jam || 0);
+          slip.total_pendapatan = newPendapatan;
+          slip.gaji_bersih = Math.max(0, newPendapatan - existingPotongan);
+        }
+
+        slip._auditTrail = auditTrail;
       }
 
-      await slip.save();
+      await slip.save({ transaction });
+      await transaction.commit();
+
+      // FIX (Task 3.4): audit log perubahan slip gaji.
+      await audit({
+        req,
+        entity: "slip_gaji",
+        entityId: slip.id,
+        action: "update",
+        before: {
+          total_lembur_jam: slip._previousDataValues?.total_lembur_jam,
+          total_pendapatan: slip._previousDataValues?.total_pendapatan,
+          total_potongan: slip._previousDataValues?.total_potongan,
+          gaji_bersih: slip._previousDataValues?.gaji_bersih,
+        },
+        after: {
+          total_lembur_jam: slip.total_lembur_jam,
+          total_pendapatan: slip.total_pendapatan,
+          total_potongan: slip.total_potongan,
+          gaji_bersih: slip.gaji_bersih,
+        },
+      });
+
+      const responseData = slip.toJSON();
+      if (slip._auditTrail) {
+        responseData.auditTrail = slip._auditTrail;
+      }
 
       return res.status(200).json({
         msg: "Berhasil memperbarui slip gaji",
-        data: slip,
+        data: responseData,
       });
     } catch (error) {
+      try {
+        await transaction.rollback();
+      } catch (rbErr) {
+        console.error("Rollback gagal:", rbErr.message);
+      }
       console.error(error);
       return res.status(500).json({
         msg: "Terjadi kesalahan pada server",
@@ -413,30 +546,54 @@ export default class SlipGajiController {
 
   // HRD: Finalize slip gaji
   static async finalize(req, res) {
+    const transaction = await sequelize.transaction();
     try {
       const { id } = req.params;
 
-      const slip = await SlipGajiModel.findByPk(id);
+      if (!isValidUUID(id)) {
+        await transaction.rollback();
+        return res.status(400).json({ msg: "ID slip gaji tidak valid" });
+      }
+
+      const slip = await SlipGajiModel.findByPk(id, { transaction });
 
       if (!slip) {
+        await transaction.rollback();
         return res.status(404).json({
           msg: "Slip gaji tidak ditemukan",
         });
       }
 
       if (slip.status === "final") {
+        await transaction.rollback();
         return res.status(400).json({
           msg: "Slip gaji sudah final",
         });
       }
 
-      await slip.update({ status: "final" });
+      await slip.update({ status: "final" }, { transaction });
+      await transaction.commit();
+
+      // Audit log (Task 3.4)
+      await audit({
+        req,
+        entity: "slip_gaji",
+        entityId: slip.id,
+        action: "finalize",
+        before: { status: "draft" },
+        after: { status: "final" },
+      });
 
       return res.status(200).json({
         msg: "Slip gaji berhasil difinalisasi",
         data: slip,
       });
     } catch (error) {
+      try {
+        await transaction.rollback();
+      } catch (rbErr) {
+        console.error("Rollback gagal:", rbErr.message);
+      }
       console.error(error);
       return res.status(500).json({
         msg: "Terjadi kesalahan pada server",
@@ -446,10 +603,14 @@ export default class SlipGajiController {
 
   // HRD: Bulk finalize all draft slips
   static async bulkFinalize(req, res) {
+    // FIX (Task 3.7): pakai transaction + update via single SQL statement
+    // agar atomic (semua final ATAU tidak sama sekali).
+    const transaction = await sequelize.transaction();
     try {
       const { bulan, tahun } = req.body;
 
       if (!bulan || !tahun) {
+        await transaction.rollback();
         return res.status(400).json({
           msg: "Bulan dan tahun wajib diisi",
         });
@@ -462,28 +623,55 @@ export default class SlipGajiController {
           tahun: parseInt(tahun),
           status: "draft",
         },
+        transaction,
+        lock: transaction.LOCK?.UPDATE,
       });
 
       if (draftSlips.length === 0) {
+        await transaction.rollback();
         return res.status(404).json({
           msg: "Tidak ada slip gaji draft untuk difinalisasi",
         });
       }
 
-      // Finalize all draft slips
-      const updatePromises = draftSlips.map((slip) =>
-        slip.update({ status: "final" }),
+      // FIX (Task 3.7): gunakan bulk UPDATE dalam satu query, bukan
+      // Promise.all(update[]) yang tidak atomic pada sebagian DB.
+      const [updatedCount] = await SlipGajiModel.update(
+        { status: "final" },
+        {
+          where: {
+            bulan: parseInt(bulan),
+            tahun: parseInt(tahun),
+            status: "draft",
+          },
+          transaction,
+        },
       );
 
-      await Promise.all(updatePromises);
+      await transaction.commit();
+
+      // Audit log (Task 3.4)
+      await audit({
+        req,
+        entity: "slip_gaji",
+        entityId: null,
+        action: "bulk_finalize",
+        before: { status: "draft", count: updatedCount },
+        after: { status: "final", count: updatedCount, bulan, tahun },
+      });
 
       return res.status(200).json({
-        msg: `Berhasil finalisasi ${draftSlips.length} slip gaji`,
+        msg: `Berhasil finalisasi ${updatedCount} slip gaji`,
         data: {
-          total_finalized: draftSlips.length,
+          total_finalized: updatedCount,
         },
       });
     } catch (error) {
+      try {
+        await transaction.rollback();
+      } catch (rbErr) {
+        console.error("Rollback gagal:", rbErr.message);
+      }
       console.error(error);
       return res.status(500).json({
         msg: "Terjadi kesalahan pada server",
@@ -588,4 +776,14 @@ export default class SlipGajiController {
       });
     }
   }
+}
+
+// FIX (Task 3.9): helper format tanggal lokal (YYYY-MM-DD) tanpa konversi
+// UTC. toISOString() menggeser tanggal -1 atau -2 hari untuk zona +07:00
+// (mis. new Date(2024, 0, 1) di WIB jadi "2023-12-31" lewat toISOString()).
+function formatLocalDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }

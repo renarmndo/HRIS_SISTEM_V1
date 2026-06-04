@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import useAuth from "../../hooks/auth/useAuth.hook";
 import useKelolaKaryawan from "../../hooks/hrd/useKelolaKaryawan";
+import useDebounce from "../../hooks/useDebounce";
 
 const MasterUserHRD = () => {
   const { loading, error, handleRegister } = useAuth();
@@ -30,6 +31,8 @@ const MasterUserHRD = () => {
 
   // --- State Management ---
   const [searchTerm, setSearchTerm] = useState("");
+  // FIX (Task 5.15): debounce search 300ms
+  const debouncedSearch = useDebounce(searchTerm, 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isModalDeleteOpen, setIsModalDeleteOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -83,23 +86,33 @@ const MasterUserHRD = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (isEditing) {
-      await editKaryawanData(selectedUser, formData);
-    } else {
-      await handleRegister(formData);
+    try {
+      if (isEditing) {
+        // FIX (Task 2.12): strip empty password so backend doesn't blank it.
+        // Only send password if user actually typed a new one.
+        const payload = { ...formData };
+        if (!payload.password || payload.password.trim() === "") {
+          delete payload.password;
+        }
+        await editKaryawanData(selectedUser, payload);
+      } else {
+        await handleRegister(formData);
+      }
+      await getKaryawanData();
+      setIsModalOpen(false);
+      setIsEditing(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.log(error);
     }
-    await getKaryawanData();
-    setIsModalOpen(false);
-    setIsEditing(false);
-    setSelectedUser(null);
   };
 
-  // Filter Search
+  // Filter Search (Task 5.15: gunakan debouncedSearch)
   const filteredUsers = (karyawanData || []).filter(
     (user) =>
-      user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role?.toLowerCase().includes(searchTerm.toLowerCase()),
+      user.username?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      user.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      user.role?.toLowerCase().includes(debouncedSearch.toLowerCase()),
   );
 
   useEffect(() => {

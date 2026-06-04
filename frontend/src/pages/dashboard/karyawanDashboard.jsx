@@ -37,7 +37,7 @@ export default function KaryawanDashboard() {
     absensiLoading,
     absensiError,
     absensiMingguan,
-    fetchDataAbsensiMungguan,
+    fetchDataAbsensiMingguan,
   } = useAbsensiHook();
 
   useEffect(() => {
@@ -48,9 +48,10 @@ export default function KaryawanDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchDataAbsensiMungguan();
+    fetchDataAbsensiMingguan();
     fetchDataAbsensi();
     loadAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadAnalytics = async () => {
@@ -205,8 +206,14 @@ export default function KaryawanDashboard() {
                 <p className="text-sm text-gray-600">Total Cuti</p>
                 <XCircle size={20} className="text-purple-500" />
               </div>
-              <p className="text-4xl font-bold text-gray-800">0</p>
-              <p className="text-xs text-gray-500 mt-1">hari terpakai</p>
+              {/* FIX (Task 5.2): hitung cuti dari absensiMingguan (minggu ini)
+                  alih-alih hardcoded 0. */}
+              <p className="text-4xl font-bold text-gray-800">
+                {(Array.isArray(absensiMingguan) ? absensiMingguan : []).filter(
+                  (a) => a.status === "cuti",
+                ).length}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">hari cuti minggu ini</p>
             </div>
           </div>
         </div>
@@ -331,7 +338,8 @@ export default function KaryawanDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {absensiMingguan.map((record, index) => (
+                {(Array.isArray(absensiMingguan) ? absensiMingguan : []).map(
+                  (record, index) => (
                   <tr
                     key={index}
                     className={`${
@@ -379,7 +387,7 @@ export default function KaryawanDashboard() {
 
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
             <p className="text-sm text-gray-600">
-              Menampilkan {absensiMingguan.length} data minggu ini
+              Menampilkan {(Array.isArray(absensiMingguan) ? absensiMingguan.length : 0)} data minggu ini
             </p>
             <button
               onClick={() => navigate("/karyawan/data-absen")}

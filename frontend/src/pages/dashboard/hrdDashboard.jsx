@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   Users,
@@ -35,6 +36,7 @@ import {
 } from "recharts";
 
 const DashboardHRD = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalKaryawan: 0,
@@ -49,6 +51,7 @@ const DashboardHRD = () => {
   const [processingId, setProcessingId] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -58,8 +61,16 @@ const DashboardHRD = () => {
         getPengajuanCutiTerbaru(),
       ]);
 
-      setStats(statsRes.data);
-      setPengajuanList(pengajuanRes.data || []);
+      // service returns response.data (the body); unwrap defensively
+      const statsObj = statsRes?.data?.data ?? statsRes?.data ?? statsRes;
+      const list = Array.isArray(pengajuanRes?.data)
+        ? pengajuanRes.data
+        : Array.isArray(pengajuanRes)
+          ? pengajuanRes
+          : [];
+
+      setStats(statsObj);
+      setPengajuanList(list);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -70,7 +81,9 @@ const DashboardHRD = () => {
   const loadAnalytics = useCallback(async () => {
     try {
       const response = await getHrdAnalytics();
-      setAnalytics(response.data);
+      // response is the body { msg, data: { departmentBreakdown, ... } }
+      const payload = response?.data?.data ?? response?.data ?? null;
+      setAnalytics(payload);
     } catch (error) {
       console.error("Error loading analytics:", error);
     } finally {
@@ -166,6 +179,8 @@ const DashboardHRD = () => {
             <input
               type="text"
               placeholder="Cari data..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2.5 w-full border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 transition-all text-sm"
             />
           </div>
@@ -313,7 +328,7 @@ const DashboardHRD = () => {
                 </p>
               </div>
               <button
-                onClick={() => (window.location.href = "/hrd/leaves")}
+                onClick={() => navigate("/hrd/leaves")}
                 className="text-sm font-medium text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 px-3 py-1.5 rounded-lg transition-colors"
               >
                 Lihat Semua
@@ -345,7 +360,7 @@ const DashboardHRD = () => {
                         </div>
                       </td>
                     </tr>
-                  ) : pengajuanList.length === 0 ? (
+                  ) : (Array.isArray(pengajuanList) ? pengajuanList.length : 0) === 0 ? (
                     <tr>
                       <td
                         colSpan="6"
@@ -358,7 +373,8 @@ const DashboardHRD = () => {
                       </td>
                     </tr>
                   ) : (
-                    pengajuanList.map((item) => (
+                    (Array.isArray(pengajuanList) ? pengajuanList : []).map(
+                      (item) => (
                       <RequestRow
                         key={item.id}
                         id={item.id}
@@ -377,7 +393,8 @@ const DashboardHRD = () => {
                         onReject={() => handleQuickAction(item.id, "ditolak")}
                         isProcessing={processingId === item.id}
                       />
-                    ))
+                    ),
+                    )
                   )}
                 </tbody>
               </table>

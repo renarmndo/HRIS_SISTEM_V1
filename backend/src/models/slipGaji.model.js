@@ -63,21 +63,31 @@ SlipGajiModel.init(
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
       defaultValue: 0,
+      // SECURITY (Task 4.6 + 4.10): gaji_pokok tidak boleh negatif
+      validate: {
+        min: {
+          args: [0],
+          msg: "gaji_pokok tidak boleh negatif",
+        },
+      },
     },
     total_pendapatan: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
       defaultValue: 0,
+      validate: { min: 0 },
     },
     total_potongan: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
       defaultValue: 0,
+      validate: { min: 0 },
     },
     gaji_bersih: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
       defaultValue: 0,
+      validate: { min: 0 },
     },
     status: {
       type: DataTypes.ENUM("draft", "final"),

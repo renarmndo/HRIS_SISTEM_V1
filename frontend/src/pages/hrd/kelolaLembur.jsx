@@ -18,6 +18,7 @@ import {
   approveLembur,
   rejectLembur,
 } from "../../services/lemburService";
+import ConfirmationModal from "../../components/ConfirmationModal";
 
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
@@ -49,6 +50,11 @@ export default function KelolaLembur() {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [selectedLembur, setSelectedLembur] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [confirmApprove, setConfirmApprove] = useState({
+    open: false,
+    id: null,
+    nama: null,
+  });
 
   useEffect(() => {
     fetchLemburData();
@@ -78,16 +84,21 @@ export default function KelolaLembur() {
     }
   };
 
-  const handleApprove = async (id, namaKaryawan) => {
-    if (window.confirm(`Setujui lembur ${namaKaryawan}?`)) {
-      try {
-        await approveLembur(id);
-        toast.success("Lembur berhasil disetujui");
-        fetchLemburData();
-        fetchStats();
-      } catch (error) {
-        toast.error(error.response?.data?.msg || "Gagal menyetujui lembur");
-      }
+  const handleApprove = (id, namaKaryawan) => {
+    // SECURITY (Task 5.1): ConfirmationModal, bukan window.confirm
+    setConfirmApprove({ open: true, id, nama: namaKaryawan });
+  };
+
+  const doApprove = async () => {
+    const { id } = confirmApprove;
+    setConfirmApprove({ open: false, id: null, nama: null });
+    try {
+      await approveLembur(id);
+      toast.success("Lembur berhasil disetujui");
+      fetchLemburData();
+      fetchStats();
+    } catch (error) {
+      toast.error(error.response?.data?.msg || "Gagal menyetujui lembur");
     }
   };
 
@@ -429,6 +440,16 @@ export default function KelolaLembur() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmationModal
+        isOpen={confirmApprove.open}
+        onClose={() => setConfirmApprove({ open: false, id: null, nama: null })}
+        onConfirm={doApprove}
+        title="Setujui Lembur"
+        message={`Setujui lembur ${confirmApprove.nama || "karyawan ini"}?`}
+        confirmText="Ya, Setujui"
+        type="success"
+      />
     </div>
   );
 }

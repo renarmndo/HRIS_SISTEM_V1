@@ -17,8 +17,8 @@ export default function useLokasiKantor() {
     setLokasiError(null);
     try {
       const response = await getLokasi();
-      const lokasi = response.data;
-      console.log("Ini Lokasi Data Kantor", lokasi);
+      // response is the body { msg, data: {...} }; unwrap defensively
+      const lokasi = response?.data?.data ?? response?.data ?? null;
       setLokasiKantor(lokasi);
     } catch (error) {
       console.log(error);
@@ -44,7 +44,8 @@ export default function useLokasiKantor() {
           color: "white",
         },
       });
-      setLokasiKantor(response.data);
+      const lokasi = response?.data?.data ?? response?.data ?? null;
+      setLokasiKantor(lokasi);
       useGetLokasi();
     } catch (error) {
       console.log(error);
@@ -59,8 +60,8 @@ export default function useLokasiKantor() {
 
   // create
   const useCreateLokasi = async (data) => {
-    loadingKantor(true);
-    lokasiError(null);
+    setLoadingKantor(true);
+    setLokasiError(null);
 
     try {
       const response = await createLokasi(data);
@@ -72,7 +73,8 @@ export default function useLokasiKantor() {
           borderBlockEnd: "1px solid #059669",
         },
       });
-      setLokasiKantor(response.data);
+      const lokasi = response?.data?.data ?? response?.data ?? null;
+      setLokasiKantor(lokasi);
       useGetLokasi();
     } catch (error) {
       console.log(error);

@@ -1,4 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
+
+// FIX (Task 5.10): hoist Intl.DateTimeFormat keluar dari component
+// agar tidak dibuat ulang setiap render (hemat memori + lebih cepat).
+const DATE_FORMATTER = new Intl.DateTimeFormat("id-ID", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+const TIME_FORMATTER = new Intl.DateTimeFormat("id-ID", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
 import {
   MapPin,
   Camera,
@@ -142,6 +156,8 @@ const AbsensiPage = () => {
   // 3. Ambil Lokasi Saat Mount
   useEffect(() => {
     if ("geolocation" in navigator) {
+      // FIX (Task 5.8): enableHighAccuracy=true untuk akurasi GPS lebih baik,
+      // dan timeout agar tidak hang jika GPS tidak tersedia.
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setCurrentLocation({
@@ -153,6 +169,11 @@ const AbsensiPage = () => {
         (error) => {
           console.error("Error location:", error);
           setLocationError("Gagal mengambil lokasi. Pastikan GPS aktif.");
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0,
         },
       );
     } else {
@@ -171,21 +192,31 @@ const AbsensiPage = () => {
     }
   }, [isCameraActive]);
 
-  // --- FORMATTERS ---
-  const formattedDate = new Intl.DateTimeFormat("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(currentTime);
-
-  const formattedTime = new Intl.DateTimeFormat("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(currentTime);
+  // --- FORMATTERS (Task 5.10: hoist keluar component) ---
+  const formattedDate = DATE_FORMATTER.format(currentTime);
+  const formattedTime = TIME_FORMATTER.format(currentTime);
 
   // --- CAMERA & FACE LOGIC ---
+
+  // FIX (Task 5.9): re-fetch GPS saat camera start, agar koordinat
+  // selalu up-to-date (pengguna bisa saja pindah lokasi setelah mount).
+  const refreshLocation = () => {
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCurrentLocation({
+          lat: position.coords.latitude,
+          long: position.coords.longitude,
+        });
+        setLocationError(null);
+      },
+      (error) => {
+        console.error("Error location:", error);
+        setLocationError("Gagal mengambil lokasi. Pastikan GPS aktif.");
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  };
 
   const startCamera = async () => {
     if (!modelLoaded) {
@@ -202,6 +233,8 @@ const AbsensiPage = () => {
       streamRef.current = stream;
       setIsCameraActive(true);
 
+      // Task 5.9: refresh GPS saat camera start
+      refreshLocation();
       startScanningFace();
     } catch (err) {
       toast.error("Gagal akses kamera: " + err.message);
@@ -223,6 +256,8 @@ const AbsensiPage = () => {
       streamRef.current = stream;
       setIsCameraActive(true);
 
+      // Task 5.9: refresh GPS saat camera start
+      refreshLocation();
       startScanningFaceKeluar();
     } catch (err) {
       toast.error("Gagal akses kamera: " + err.message);

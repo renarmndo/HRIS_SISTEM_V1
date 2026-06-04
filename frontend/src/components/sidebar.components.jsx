@@ -124,6 +124,9 @@ export default function SidebarComponents({ isOpen, onToggle }) {
       try {
         const token = localStorage.getItem("token");
 
+        // FIX (Task 5.3): fallback role "karyawan" jika token invalid
+        // atau kadaluarsa. Sebelumnya Guest User tampil padahal user
+        // masih login, sehingga menu yang muncul bisa tidak sesuai.
         if (!token) {
           setUserData({
             role: "karyawan",
@@ -141,6 +144,9 @@ export default function SidebarComponents({ isOpen, onToggle }) {
         const currentTime = Date.now() / 1000;
 
         if (decoded.exp && decoded.exp < currentTime) {
+          // Token kadaluarsa: bersihkan dan fallback ke karyawan
+          localStorage.removeItem("token");
+          localStorage.removeItem("role");
           setUserData({
             role: "karyawan",
             name: "Guest User",
@@ -148,8 +154,13 @@ export default function SidebarComponents({ isOpen, onToggle }) {
             avatar: null,
           });
         } else {
+          // FIX (Task 5.3): validasi role ada di whitelist (hrd/karyawan)
+          const safeRole =
+            decoded.role === "hrd" || decoded.role === "karyawan"
+              ? decoded.role
+              : "karyawan";
           setUserData({
-            role: decoded.role,
+            role: safeRole,
             email: decoded.email,
             name: decoded.name || decoded.email?.split("@")[0] || "User",
             avatar: decoded.avatar,
@@ -157,6 +168,9 @@ export default function SidebarComponents({ isOpen, onToggle }) {
         }
       } catch (error) {
         console.error("Error decoding token:", error);
+        // FIX (Task 5.3): token corrupt → fallback karyawan
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
         setUserData({
           role: "karyawan",
           name: "Guest User",
@@ -208,6 +222,8 @@ export default function SidebarComponents({ isOpen, onToggle }) {
               ? "w-64 translate-x-0"
               : "w-20 -translate-x-full lg:translate-x-0"
           }`}
+        role="navigation"
+        aria-label="Menu navigasi utama"
       >
         {/* Header/Logo */}
         <div

@@ -26,6 +26,7 @@ import {
   updateAbsensi,
   getAbsensiBulananKaryawan,
 } from "../../services/hrd/absensiHrdService";
+import useDebounce from "../../hooks/useDebounce";
 
 // Nama bulan Indonesia
 const namaBulan = [
@@ -153,6 +154,8 @@ export default function KelolaAbsensiKaryawan() {
     new Date().toISOString().split("T")[0],
   );
   const [searchTerm, setSearchTerm] = useState("");
+  // FIX (Task 5.15): debounce search 300ms
+  const debouncedSearch = useDebounce(searchTerm, 300);
   const [absensiData, setAbsensiData] = useState([]);
   const [stats, setStats] = useState({
     total_karyawan: 0,
@@ -216,9 +219,9 @@ export default function KelolaAbsensiKaryawan() {
   // Filter data by search
   const filteredData = absensiData.filter(
     (item) =>
-      item.nama_lengkap?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.jabatan?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.departement?.toLowerCase().includes(searchTerm.toLowerCase()),
+      item.nama_lengkap?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      item.jabatan?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      item.departement?.toLowerCase().includes(debouncedSearch.toLowerCase()),
   );
 
   // Pagination
