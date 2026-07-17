@@ -14,6 +14,12 @@ AbsensiKaryawanModel.init(
     karyawan_id: {
       type: DataTypes.UUID,
       allowNull: false,
+      references: {
+        model: "m_karyawan",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     },
     tanggal: {
       type: DataTypes.DATEONLY,
@@ -95,6 +101,12 @@ AbsensiKaryawanModel.init(
       type: DataTypes.UUID,
       allowNull: true,
       comment: "User ID HRD yang mengabsenkan manual",
+      references: {
+        model: "m_users",
+        key: "id",
+      },
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
     },
     is_manual: {
       type: DataTypes.BOOLEAN,

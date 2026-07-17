@@ -47,7 +47,7 @@ export default class HrdAbsensiController {
           user_id: karyawan.user_id,
           nama_lengkap: karyawan.nama_lengkap,
           jabatan: karyawan.jabatan,
-          departement: karyawan.departement,
+          department: karyawan.department,
           email: karyawan.user?.email,
           absensi: absensi
             ? {
@@ -400,7 +400,7 @@ export default class HrdAbsensiController {
             id: karyawan.id,
             nama_lengkap: karyawan.nama_lengkap,
             jabatan: karyawan.jabatan,
-            departement: karyawan.departement,
+            department: karyawan.department,
             email: karyawan.user?.email,
           },
           bulan: bulanTarget,

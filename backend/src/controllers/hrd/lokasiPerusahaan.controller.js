@@ -1,4 +1,5 @@
 import LokasiKantorModel from "../../models/lokasiKantor.model.js";
+import { isValidLatitude, isValidLongitude, isValidInt, isValidUUID } from "../../utils/validators.js";
 
 export default class LokasiPerusahaanController {
   static async create(req, res) {
@@ -12,10 +13,24 @@ export default class LokasiPerusahaanController {
         jam_keluar,
       } = req.body;
 
-      if (!nama_perusahaan || !latitude || !longitude) {
+      if (!nama_perusahaan || latitude === undefined || longitude === undefined || latitude === "" || longitude === "") {
         return res.status(400).json({
-          msg: "Data tidak boleh kosong",
+          msg: "Nama perusahaan, latitude, dan longitude wajib diisi",
         });
+      }
+
+      if (!isValidLatitude(latitude) || !isValidLongitude(longitude)) {
+        return res.status(400).json({
+          msg: "Koordinat GPS tidak valid (latitude -90 s/d 90, longitude -180 s/d 180)",
+        });
+      }
+
+      if (radius_absen_meter !== undefined && radius_absen_meter !== null && radius_absen_meter !== "") {
+        if (!isValidInt(radius_absen_meter, { min: 1 })) {
+          return res.status(400).json({
+            msg: "Radius absensi harus berupa angka bulat positif minimal 1 meter",
+          });
+        }
       }
 
       const lokasiPerusahaan = await LokasiKantorModel.create({
@@ -52,10 +67,30 @@ export default class LokasiPerusahaanController {
         jam_keluar,
       } = req.body;
 
-      if (!nama_perusahaan || !latitude || !longitude) {
+      if (!isValidUUID(id)) {
         return res.status(400).json({
-          msg: "Data tidak boleh kosong",
+          msg: "ID lokasi tidak valid",
         });
+      }
+
+      if (!nama_perusahaan || latitude === undefined || longitude === undefined || latitude === "" || longitude === "") {
+        return res.status(400).json({
+          msg: "Nama perusahaan, latitude, dan longitude wajib diisi",
+        });
+      }
+
+      if (!isValidLatitude(latitude) || !isValidLongitude(longitude)) {
+        return res.status(400).json({
+          msg: "Koordinat GPS tidak valid (latitude -90 s/d 90, longitude -180 s/d 180)",
+        });
+      }
+
+      if (radius_absen_meter !== undefined && radius_absen_meter !== null && radius_absen_meter !== "") {
+        if (!isValidInt(radius_absen_meter, { min: 1 })) {
+          return res.status(400).json({
+            msg: "Radius absensi harus berupa angka bulat positif minimal 1 meter",
+          });
+        }
       }
 
       //   cek apakah id

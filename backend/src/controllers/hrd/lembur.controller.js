@@ -32,7 +32,7 @@ export default class HrdLemburController {
           {
             model: KaryawanModel,
             as: "karyawan",
-            attributes: ["id", "nama_lengkap", "jabatan", "departement"],
+            attributes: ["id", "nama_lengkap", "jabatan", "department"],
           },
           {
             model: UserModel,

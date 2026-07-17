@@ -1,4 +1,6 @@
 import UsersModel from "../../models/users.model.js";
+import KaryawanModel from "../../models/karyawan.model.js";
+import sequelize from "../../config/sequelize.js";
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import { isNonEmptyString, isValidEmail, isValidUUID } from "../../utils/validators.js";
@@ -12,7 +14,7 @@ export default class AuthController {
       // SECURITY (Task 4.9): Abaikan field `role` & `status` dari body.
       // Client tidak boleh menentukan hak akses user baru. roleMiddleware("hrd")
       // sudah ada di route; ini defense-in-depth.
-      const { username, email, password } = req.body;
+      const { username, email, password, department } = req.body;
 
       // SECURITY (Task 4.2): schema validation sederhana
       if (!isNonEmptyString(username, { minLen: 3, maxLen: 50 })) {
@@ -28,6 +30,11 @@ export default class AuthController {
       if (!isNonEmptyString(password, { minLen: 6, maxLen: 128 })) {
         return res.status(400).json({
           msg: "Password harus 6-128 karakter",
+        });
+      }
+      if (!isNonEmptyString(department, { minLen: 1, maxLen: 100 })) {
+        return res.status(400).json({
+          msg: "Departemen harus diisi dan maksimal 100 karakter",
         });
       }
 
@@ -59,15 +66,30 @@ export default class AuthController {
       //   hash password
       const hashedPassword = await argon2.hash(password);
 
-      //   create new user
-      // SECURITY (Task 1.1): role & status hardcoded server-side.
-      // Jangan pernah percaya client untuk menentukan role user baru.
-      const result = await UsersModel.create({
-        username: username,
-        email: email,
-        password: hashedPassword,
-        role: "karyawan",
-        status: "aktif",
+      //   create new user and employee profile in a transaction
+      let result;
+      await sequelize.transaction(async (t) => {
+        // SECURITY (Task 1.1): role & status hardcoded server-side.
+        // Jangan pernah percaya client untuk menentukan role user baru.
+        result = await UsersModel.create({
+          username: username,
+          email: email,
+          password: hashedPassword,
+          role: "karyawan",
+          status: "aktif",
+        }, { transaction: t });
+
+        // Buat profil karyawan default secara otomatis
+        await KaryawanModel.create({
+          user_id: result.id,
+          nama_lengkap: username,
+          tanggal_masuk: new Date(),
+          alamat: "-",
+          department: department,
+          jabatan: "Karyawan",
+          gaji_pokok: 0,
+          is_active: true,
+        }, { transaction: t });
       });
 
       // hilangkan password dari object
@@ -81,7 +103,7 @@ export default class AuthController {
       };
 
       return res.status(201).json({
-        msg: "Berhasil Menambahkan User",
+        msg: "Berhasil Menambahkan User dan Profil Karyawan",
         data: userWithoutPassword,
       });
     } catch (error) {
@@ -173,7 +195,7 @@ export default class AuthController {
   static async updatePassword(req, res) {
     try {
       const { id } = req.params;
-      const { username, email, password, role, status } = req.body;
+      const { username, email, password, role, status, department } = req.body;
 
       // SECURITY (Task 4.2): UUID validation
       if (!isValidUUID(id)) {
@@ -194,6 +216,9 @@ export default class AuthController {
       }
       if (!isValidEmail(email)) {
         return res.status(400).json({ msg: "Format email tidak valid" });
+      }
+      if (role === "karyawan" && !isNonEmptyString(department, { minLen: 1, maxLen: 100 })) {
+        return res.status(400).json({ msg: "Departemen harus diisi dan maksimal 100 karakter" });
       }
 
       const user = await UsersModel.findOne({ where: { id } });
@@ -223,7 +248,35 @@ export default class AuthController {
       }
 
       // update database
-      await UsersModel.update(updateData, { where: { id } });
+      await sequelize.transaction(async (t) => {
+        await UsersModel.update(updateData, { where: { id }, transaction: t });
+
+        // Sinkronisasi status & department ke m_karyawan jika user adalah/menjadi karyawan
+        if (role === "karyawan" || user.role === "karyawan") {
+          const profileUpdate = {
+            is_active: status === "aktif"
+          };
+          if (department !== undefined) {
+            profileUpdate.department = department;
+          }
+
+          const existingProfile = await KaryawanModel.findOne({ where: { user_id: id }, transaction: t });
+          if (existingProfile) {
+            await KaryawanModel.update(profileUpdate, { where: { user_id: id }, transaction: t });
+          } else {
+            await KaryawanModel.create({
+              user_id: id,
+              nama_lengkap: username,
+              tanggal_masuk: new Date(),
+              alamat: "-",
+              department: department || "-",
+              jabatan: "Karyawan",
+              gaji_pokok: 0,
+              is_active: status === "aktif"
+            }, { transaction: t });
+          }
+        }
+      });
 
       // return tanpa password
       const payload = user.toJSON();

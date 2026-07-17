@@ -83,7 +83,7 @@ export default class AbsensiController {
 
       // Hitung jarak wajah
       const distance = validateDistance(face_embedding_masuk, storedEmbedding);
-      const threshold = 0.6;
+      const threshold = 0.55;
 
       if (distance > threshold) {
         return res.status(400).json({
@@ -261,7 +261,7 @@ export default class AbsensiController {
 
       const storedEmbedding = karyawanFace.face_embedding;
       const distance = validateDistance(face_embedding_keluar, storedEmbedding);
-      const threshold = 0.6; // Samakan dengan absen masuk
+      const threshold = 0.55; // Samakan dengan absen masuk
 
       if (distance > threshold) {
         return res.status(400).json({

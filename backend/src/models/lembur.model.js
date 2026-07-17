@@ -1,23 +1,25 @@
-import { DataTypes } from "sequelize";
+import { DataTypes, Model } from "sequelize";
 import sequelize from "../config/sequelize.js";
-import KaryawanModel from "./karyawan.model.js";
-import UserModel from "./users.model.js";
 
-const LemburModel = sequelize.define(
-  "lembur",
+export default class LemburModel extends Model {}
+
+LemburModel.init(
   {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      allowNull: false,
       primaryKey: true,
-      autoIncrement: true,
     },
     karyawan_id: {
       type: DataTypes.UUID,
       allowNull: false,
       references: {
-        model: "M_karyawan",
+        model: "m_karyawan",
         key: "id",
       },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     },
     tanggal: {
       type: DataTypes.DATEONLY,
@@ -50,6 +52,8 @@ const LemburModel = sequelize.define(
         model: "m_users",
         key: "id",
       },
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
     },
     approved_at: {
       type: DataTypes.DATE,
@@ -61,20 +65,9 @@ const LemburModel = sequelize.define(
     },
   },
   {
+    sequelize,
+    modelName: "lembur",
     tableName: "lembur",
     timestamps: true,
   },
 );
-
-// Relations
-LemburModel.belongsTo(KaryawanModel, {
-  foreignKey: "karyawan_id",
-  as: "karyawan",
-});
-
-LemburModel.belongsTo(UserModel, {
-  foreignKey: "approved_by",
-  as: "approver",
-});
-
-export default LemburModel;

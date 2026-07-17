@@ -9,6 +9,13 @@ export default class KelolaKaryawanController {
       const users = await UsersModel.findAll({
         order: [["createdAt", "desc"]],
         attributes: ["id", "username", "email", "role", "status", "createdAt"],
+        include: [
+          {
+            model: KaryawanModel,
+            as: "profile",
+            attributes: ["id", "department"],
+          },
+        ],
       });
 
       return res.status(200).json({
@@ -39,7 +46,7 @@ export default class KelolaKaryawanController {
               "nama_lengkap",
               "tanggal_masuk",
               "alamat",
-              "departement",
+              "department",
               "jabatan",
               "gaji_pokok",
               "is_active",
@@ -53,7 +60,7 @@ export default class KelolaKaryawanController {
         return {
           ...userData,
           nama_lengkap: userData.profile?.nama_lengkap || userData.username,
-          departement: userData.profile?.departement || "-",
+          department: userData.profile?.department || "-",
           jabatan: userData.profile?.jabatan || "-",
           gaji_pokok: userData.profile?.gaji_pokok || 0,
           karyawan_id: userData.profile?.id || null,

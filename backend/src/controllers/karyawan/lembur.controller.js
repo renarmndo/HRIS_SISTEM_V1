@@ -1,5 +1,6 @@
 import LemburModel from "../../models/lembur.model.js";
 import KaryawanModel from "../../models/karyawan.model.js";
+import { Op } from "sequelize";
 import moment from "moment";
 
 export default class LemburController {
@@ -24,6 +25,27 @@ export default class LemburController {
       if (!karyawan) {
         return res.status(404).json({
           msg: "Data karyawan tidak ditemukan",
+        });
+      }
+
+      // Cek apakah ada pengajuan lembur yang tumpang tindih pada tanggal yang sama
+      const overlap = await LemburModel.findOne({
+        where: {
+          karyawan_id: karyawan.id,
+          tanggal,
+          status: { [Op.in]: ["pending", "approved"] },
+          [Op.and]: [
+            { jam_mulai: { [Op.lt]: jam_selesai } },
+            { jam_selesai: { [Op.gt]: jam_mulai } }
+          ]
+        }
+      });
+
+      if (overlap) {
+        const fmtMulai = overlap.jam_mulai ? overlap.jam_mulai.slice(0, 5) : "";
+        const fmtSelesai = overlap.jam_selesai ? overlap.jam_selesai.slice(0, 5) : "";
+        return res.status(400).json({
+          msg: `Anda sudah memiliki pengajuan lembur yang tumpang tindih pada jam tersebut (${fmtMulai} s/d ${fmtSelesai}, status: ${overlap.status}).`,
         });
       }
 

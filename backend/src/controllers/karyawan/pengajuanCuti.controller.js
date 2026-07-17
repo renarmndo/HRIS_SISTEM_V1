@@ -197,17 +197,34 @@ export default class PengajuanCutiController {
       }
 
       // Untuk setiap bulan, cek kuota
+      const now = new Date();
+      const currentBulan = now.getMonth() + 1;
+      const currentTahun = now.getFullYear();
+
       for (const { bulan, tahun, hari } of monthsToCheck) {
         if (hari === 0) continue;
-        const kuotaCuti = await KuotaCutiModel.findOne({
+        let kuotaCuti = await KuotaCutiModel.findOne({
           where: { bulan, tahun, is_active: true },
           transaction,
         });
         if (!kuotaCuti) {
-          await transaction.rollback();
-          return res.status(400).json({
-            msg: `Kuota cuti untuk bulan ${bulan} tahun ${tahun} belum diatur oleh admin`,
-          });
+          const isPastMonth = (tahun < currentTahun) || (tahun === currentTahun && bulan < currentBulan);
+          if (isPastMonth) {
+            await transaction.rollback();
+            return res.status(400).json({
+              msg: `Pengajuan cuti gagal. Kuota cuti untuk bulan ${bulan}/${tahun} (bulan yang sudah terlewat) belum diatur oleh HRD.`,
+            });
+          }
+
+          // Self-healing: buat kuota cuti default secara otomatis
+          kuotaCuti = await KuotaCutiModel.create({
+            bulan,
+            tahun,
+            total_hari_kerja: 22,
+            kuota_cuti: 7,
+            keterangan: "Dibuat otomatis oleh sistem saat pengajuan cuti",
+            is_active: true,
+          }, { transaction });
         }
         const key = `${tahun}-${bulan}`;
         const sudahDipakai = cutiPerBulan[key] || 0;
@@ -391,7 +408,7 @@ export default class PengajuanCutiController {
           {
             model: KaryawanModel,
             as: "karyawan",
-            attributes: ["id", "nama_lengkap", "jabatan", "departement"],
+            attributes: ["id", "nama_lengkap", "jabatan", "department"],
           },
         ],
         order: [["createdAt", "DESC"]],

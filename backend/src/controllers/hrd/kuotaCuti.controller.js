@@ -1,4 +1,5 @@
 import KuotaCutiModel from "../../models/kuotaCutiModel.js";
+import { isValidInt, isValidUUID } from "../../utils/validators.js";
 
 export default class KuotaCutiController {
   // Get all kuota cuti
@@ -36,10 +37,16 @@ export default class KuotaCutiController {
     try {
       const { bulan, tahun } = req.params;
 
+      if (!isValidInt(bulan, { min: 1, max: 12 }) || !isValidInt(tahun, { min: 1970, max: 2100 })) {
+        return res.status(400).json({
+          msg: "Bulan (1-12) atau tahun (1970-2100) tidak valid",
+        });
+      }
+
       const data = await KuotaCutiModel.findOne({
         where: {
-          bulan: parseInt(bulan),
-          tahun: parseInt(tahun),
+          bulan: parseInt(bulan, 10),
+          tahun: parseInt(tahun, 10),
         },
       });
 
@@ -67,9 +74,33 @@ export default class KuotaCutiController {
       const { bulan, tahun, total_hari_kerja, kuota_cuti, keterangan } =
         req.body;
 
-      if (!bulan || !tahun || !total_hari_kerja || !kuota_cuti) {
+      if (bulan === undefined || tahun === undefined || total_hari_kerja === undefined || kuota_cuti === undefined) {
         return res.status(400).json({
           msg: "Bulan, tahun, total hari kerja, dan kuota cuti wajib diisi",
+        });
+      }
+
+      if (!isValidInt(bulan, { min: 1, max: 12 })) {
+        return res.status(400).json({
+          msg: "Bulan harus berupa angka bulat antara 1-12",
+        });
+      }
+
+      if (!isValidInt(tahun, { min: 1970, max: 2100 })) {
+        return res.status(400).json({
+          msg: "Tahun harus berupa angka bulat antara 1970-2100",
+        });
+      }
+
+      if (!isValidInt(total_hari_kerja, { min: 1, max: 31 })) {
+        return res.status(400).json({
+          msg: "Total hari kerja harus berupa angka bulat antara 1-31",
+        });
+      }
+
+      if (!isValidInt(kuota_cuti, { min: 0, max: 31 })) {
+        return res.status(400).json({
+          msg: "Kuota cuti harus berupa angka bulat positif maksimal 31",
         });
       }
 
@@ -127,6 +158,44 @@ export default class KuotaCutiController {
         is_active,
       } = req.body;
 
+      if (!isValidUUID(id)) {
+        return res.status(400).json({
+          msg: "ID kuota cuti tidak valid",
+        });
+      }
+
+      if (bulan !== undefined) {
+        if (!isValidInt(bulan, { min: 1, max: 12 })) {
+          return res.status(400).json({
+            msg: "Bulan harus berupa angka bulat antara 1-12",
+          });
+        }
+      }
+
+      if (tahun !== undefined) {
+        if (!isValidInt(tahun, { min: 1970, max: 2100 })) {
+          return res.status(400).json({
+            msg: "Tahun harus berupa angka bulat antara 1970-2100",
+          });
+        }
+      }
+
+      if (total_hari_kerja !== undefined) {
+        if (!isValidInt(total_hari_kerja, { min: 1, max: 31 })) {
+          return res.status(400).json({
+            msg: "Total hari kerja harus berupa angka bulat antara 1-31",
+          });
+        }
+      }
+
+      if (kuota_cuti !== undefined) {
+        if (!isValidInt(kuota_cuti, { min: 0, max: 31 })) {
+          return res.status(400).json({
+            msg: "Kuota cuti harus berupa angka bulat positif maksimal 31",
+          });
+        }
+      }
+
       const data = await KuotaCutiModel.findByPk(id);
 
       if (!data) {
@@ -178,6 +247,12 @@ export default class KuotaCutiController {
   static async delete(req, res) {
     try {
       const { id } = req.params;
+
+      if (!isValidUUID(id)) {
+        return res.status(400).json({
+          msg: "ID kuota cuti tidak valid",
+        });
+      }
 
       const data = await KuotaCutiModel.findByPk(id);
 

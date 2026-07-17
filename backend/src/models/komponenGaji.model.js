@@ -14,6 +14,7 @@ KomponenGajiModel.init(
     nama: {
       type: DataTypes.STRING,
       allowNull: false,
+      unique: true,
     },
     tipe: {
       type: DataTypes.ENUM("bonus", "potongan"),

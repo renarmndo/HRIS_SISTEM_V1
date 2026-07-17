@@ -31,7 +31,7 @@ export default class DataDiriKaryawan {
         nama_lengkap: nama_lengkap,
         tanggal_masuk: new Date(),
         alamat: alamat,
-        departement: "Bisnis",
+        department: "Bisnis",
         jabatan: "Karyawan",
         is_active: true,
       });

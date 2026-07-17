@@ -14,10 +14,22 @@ DetailSlipGajiModel.init(
     slip_gaji_id: {
       type: DataTypes.UUID,
       allowNull: false,
+      references: {
+        model: "m_slip_gaji",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     },
     komponen_id: {
       type: DataTypes.UUID,
-      allowNull: true, // Nullable untuk komponen manual
+      allowNull: true,
+      references: {
+        model: "m_komponen_gaji",
+        key: "id",
+      },
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
     },
     nama_komponen: {
       type: DataTypes.STRING,

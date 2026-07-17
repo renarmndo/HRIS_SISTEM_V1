@@ -15,20 +15,26 @@ KaryawanModel.init(
       type: DataTypes.UUID,
       allowNull: false,
       unique: true,
+      references: {
+        model: "m_users",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     },
     nama_lengkap: {
       type: DataTypes.STRING,
       allowNull: false,
     },
     tanggal_masuk: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATEONLY,
       allowNull: false,
     },
     alamat: {
       type: DataTypes.TEXT,
       allowNull: false,
     },
-    departement: {
+    department: {
       type: DataTypes.STRING,
       allowNull: true,
     },
@@ -49,7 +55,7 @@ KaryawanModel.init(
   {
     sequelize,
     modelName: "karyawans",
-    tableName: "M_karyawan",
+    tableName: "m_karyawan",
     timestamps: true,
   }
 );

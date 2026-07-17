@@ -14,6 +14,12 @@ SlipGajiModel.init(
     karyawan_id: {
       type: DataTypes.UUID,
       allowNull: false,
+      references: {
+        model: "m_karyawan",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     },
     bulan: {
       type: DataTypes.INTEGER,

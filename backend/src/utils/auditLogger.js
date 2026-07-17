@@ -5,17 +5,21 @@ const TABLE = "m_audit_log";
 async function ensureTable() {
   await sequelize.query(`
     CREATE TABLE IF NOT EXISTS ${TABLE} (
-      id CHAR(36) PRIMARY KEY,
-      actor_id CHAR(36),
+      id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin PRIMARY KEY,
+      actor_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
       actor_role VARCHAR(50),
       entity VARCHAR(100) NOT NULL,
-      entity_id CHAR(36),
+      entity_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
       action VARCHAR(50) NOT NULL,
       \`before\` JSON,
       \`after\` JSON,
       ip_address VARCHAR(64),
       user_agent TEXT,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_audit_log_actor_id (actor_id),
+      INDEX idx_audit_log_entity (entity, entity_id),
+      INDEX idx_audit_log_created_at (createdAt),
+      CONSTRAINT fk_audit_log_actor FOREIGN KEY (actor_id) REFERENCES m_users(id) ON DELETE SET NULL ON UPDATE CASCADE
     )
   `);
 }

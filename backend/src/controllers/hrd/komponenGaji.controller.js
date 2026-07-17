@@ -1,4 +1,5 @@
 import KomponenGajiModel from "../../models/komponenGaji.model.js";
+import { isValidFloat, isValidUUID, isNonEmptyString } from "../../utils/validators.js";
 
 export default class KomponenGajiController {
   // Get semua komponen gaji
@@ -34,6 +35,13 @@ export default class KomponenGajiController {
   static async getById(req, res) {
     try {
       const { id } = req.params;
+
+      if (!isValidUUID(id)) {
+        return res.status(400).json({
+          msg: "ID komponen gaji tidak valid",
+        });
+      }
+
       const data = await KomponenGajiModel.findByPk(id);
 
       if (!data) {
@@ -59,9 +67,9 @@ export default class KomponenGajiController {
     try {
       const { nama, tipe, metode, nilai_default, keterangan } = req.body;
 
-      if (!nama || !tipe) {
+      if (!isNonEmptyString(nama, { minLen: 1, maxLen: 100 })) {
         return res.status(400).json({
-          msg: "Nama dan tipe komponen wajib diisi",
+          msg: "Nama komponen wajib diisi dan maksimal 100 karakter",
         });
       }
 
@@ -69,6 +77,22 @@ export default class KomponenGajiController {
         return res.status(400).json({
           msg: "Tipe harus 'bonus' atau 'potongan'",
         });
+      }
+
+      if (metode !== undefined && metode !== null && metode !== "") {
+        if (!["nominal", "persentase"].includes(metode)) {
+          return res.status(400).json({
+            msg: "Metode harus 'nominal' atau 'persentase'",
+          });
+        }
+      }
+
+      if (nilai_default !== undefined && nilai_default !== null && nilai_default !== "") {
+        if (!isValidFloat(nilai_default, { min: 0 })) {
+          return res.status(400).json({
+            msg: "Nilai default harus berupa angka positif",
+          });
+        }
       }
 
       const data = await KomponenGajiModel.create({
@@ -98,6 +122,44 @@ export default class KomponenGajiController {
       const { id } = req.params;
       const { nama, tipe, metode, nilai_default, keterangan, is_active } =
         req.body;
+
+      if (!isValidUUID(id)) {
+        return res.status(400).json({
+          msg: "ID komponen gaji tidak valid",
+        });
+      }
+
+      if (nama !== undefined) {
+        if (!isNonEmptyString(nama, { minLen: 1, maxLen: 100 })) {
+          return res.status(400).json({
+            msg: "Nama komponen tidak boleh kosong dan maksimal 100 karakter",
+          });
+        }
+      }
+
+      if (tipe !== undefined) {
+        if (!["bonus", "potongan"].includes(tipe)) {
+          return res.status(400).json({
+            msg: "Tipe harus 'bonus' atau 'potongan'",
+          });
+        }
+      }
+
+      if (metode !== undefined) {
+        if (!["nominal", "persentase"].includes(metode)) {
+          return res.status(400).json({
+            msg: "Metode harus 'nominal' atau 'persentase'",
+          });
+        }
+      }
+
+      if (nilai_default !== undefined && nilai_default !== null) {
+        if (!isValidFloat(nilai_default, { min: 0 })) {
+          return res.status(400).json({
+            msg: "Nilai default harus berupa angka positif",
+          });
+        }
+      }
 
       const komponen = await KomponenGajiModel.findByPk(id);
 
@@ -133,6 +195,12 @@ export default class KomponenGajiController {
   static async delete(req, res) {
     try {
       const { id } = req.params;
+
+      if (!isValidUUID(id)) {
+        return res.status(400).json({
+          msg: "ID komponen gaji tidak valid",
+        });
+      }
 
       const komponen = await KomponenGajiModel.findByPk(id);
 

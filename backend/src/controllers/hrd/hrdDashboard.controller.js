@@ -101,7 +101,7 @@ export default class HrdDashboardController {
           {
             model: KaryawanModel,
             as: "karyawan",
-            attributes: ["id", "nama_lengkap", "jabatan", "departement"],
+            attributes: ["id", "nama_lengkap", "jabatan", "department"],
           },
         ],
         order: [["createdAt", "DESC"]],
@@ -114,7 +114,7 @@ export default class HrdDashboardController {
           id: item.karyawan?.id,
           nama: item.karyawan?.nama_lengkap,
           jabatan: item.karyawan?.jabatan,
-          departement: item.karyawan?.departement,
+          department: item.karyawan?.department,
         },
         jenis_cuti: item.jenis_cuti,
         tanggal_mulai: item.tanggal_mulai,
@@ -278,15 +278,15 @@ export default class HrdDashboardController {
       const deptRows = await KaryawanModel.findAll({
         where: { is_active: true },
         attributes: [
-          "departement",
+          "department",
           [sequelize.fn("COUNT", sequelize.col("id")), "count"],
         ],
-        group: ["departement"],
+        group: ["department"],
         raw: true,
       });
 
       const departmentData = deptRows.map((row) => ({
-        name: row.departement || "Tidak Ada Departemen",
+        name: row.department || "Tidak Ada Departemen",
         value: parseInt(row.count, 10) || 0,
       }));
 

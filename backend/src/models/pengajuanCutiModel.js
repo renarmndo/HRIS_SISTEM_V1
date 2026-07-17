@@ -14,6 +14,12 @@ PengajuanCutiModel.init(
     karyawan_id: {
       type: DataTypes.UUID,
       allowNull: false,
+      references: {
+        model: "m_karyawan",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     },
     tanggal_mulai: {
       type: DataTypes.DATEONLY,
@@ -54,6 +60,12 @@ PengajuanCutiModel.init(
     approved_by: {
       type: DataTypes.UUID,
       allowNull: true,
+      references: {
+        model: "m_users",
+        key: "id",
+      },
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
     },
     approved_at: {
       type: DataTypes.DATE,

@@ -15,6 +15,12 @@ KaryawanFaceModel.init(
       type: DataTypes.UUID,
       unique: true,
       allowNull: false,
+      references: {
+        model: "m_karyawan",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     },
     face_embedding: {
       type: DataTypes.JSON,

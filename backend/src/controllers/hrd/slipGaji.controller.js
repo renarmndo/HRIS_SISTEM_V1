@@ -17,10 +17,20 @@ export default class SlipGajiController {
     try {
       const { bulan, tahun } = req.body;
 
-      if (!bulan || !tahun) {
+      const bulanNum = parseBulan(bulan);
+      const tahunNum = parseTahun(tahun);
+
+      if (bulanNum === null || Number.isNaN(bulanNum)) {
         await transaction.rollback();
         return res.status(400).json({
-          msg: "Bulan dan tahun wajib diisi",
+          msg: "Bulan tidak valid (harus berupa angka bulat 1-12)",
+        });
+      }
+
+      if (tahunNum === null || Number.isNaN(tahunNum)) {
+        await transaction.rollback();
+        return res.status(400).json({
+          msg: "Tahun tidak valid (harus berupa angka bulat)",
         });
       }
 
@@ -46,8 +56,8 @@ export default class SlipGajiController {
       // Ambil kuota cuti bulan ini (untuk total hari kerja)
       const kuotaCuti = await KuotaCutiModel.findOne({
         where: {
-          bulan: parseInt(bulan),
-          tahun: parseInt(tahun),
+          bulan: bulanNum,
+          tahun: tahunNum,
           is_active: true,
         },
         transaction,
@@ -57,8 +67,8 @@ export default class SlipGajiController {
 
       // FIX (Task 3.9): gunakan helper localDate() untuk format YYYY-MM-DD
       // tanpa konversi UTC yang dapat menggeser tanggal 1-2 hari.
-      const startOfMonth = new Date(parseInt(tahun), parseInt(bulan) - 1, 1);
-      const endOfMonth = new Date(parseInt(tahun), parseInt(bulan), 0);
+      const startOfMonth = new Date(tahunNum, bulanNum - 1, 1);
+      const endOfMonth = new Date(tahunNum, bulanNum, 0);
       const startDate = formatLocalDate(startOfMonth);
       const endDate = formatLocalDate(endOfMonth);
 
@@ -69,8 +79,8 @@ export default class SlipGajiController {
         let slip = await SlipGajiModel.findOne({
           where: {
             karyawan_id: karyawan.id,
-            bulan: parseInt(bulan),
-            tahun: parseInt(tahun),
+            bulan: bulanNum,
+            tahun: tahunNum,
           },
           transaction,
         });
@@ -322,7 +332,7 @@ export default class SlipGajiController {
           {
             model: KaryawanModel,
             as: "karyawan",
-            attributes: ["id", "nama_lengkap", "jabatan", "departement"],
+            attributes: ["id", "nama_lengkap", "jabatan", "department"],
           },
         ],
         order: [["createdAt", "DESC"]],
@@ -358,7 +368,7 @@ export default class SlipGajiController {
           {
             model: KaryawanModel,
             as: "karyawan",
-            attributes: ["id", "nama_lengkap", "jabatan", "departement"],
+            attributes: ["id", "nama_lengkap", "jabatan", "department"],
           },
           {
             model: DetailSlipGajiModel,
