@@ -46,6 +46,7 @@ const MasterUserHRD = () => {
     password: "",
     role: "",
     status: "aktif",
+    department: "",
   });
 
   // --- Handlers ---
@@ -57,6 +58,7 @@ const MasterUserHRD = () => {
       password: "",
       role: "",
       status: "aktif",
+      department: "",
     });
     setIsModalOpen(true);
   };
@@ -70,6 +72,7 @@ const MasterUserHRD = () => {
       password: "",
       role: user.role,
       status: user.status,
+      department: user.profile?.department || "",
     });
     setIsModalOpen(true);
   };
@@ -207,6 +210,11 @@ const MasterUserHRD = () => {
                           <p className="text-xs text-gray-500 flex items-center gap-1">
                             <Mail className="w-3 h-3" /> {user.email}
                           </p>
+                          {user.role === "karyawan" && user.profile?.department && (
+                            <p className="text-xs text-cyan-600 font-medium flex items-center gap-1 mt-0.5">
+                              <Briefcase className="w-3 h-3" /> {user.profile.department}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -338,7 +346,7 @@ const MasterUserHRD = () => {
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-600">
-                  Password {isEditing ? "(Isi jika ingin reset)" : "*"}
+                  Password {isEditing ? "(Isi jika ingin reset)" : <span className="text-red-500">*</span>}
                 </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
@@ -387,6 +395,27 @@ const MasterUserHRD = () => {
                   <option value="karyawan">Karyawan</option>
                 </select>
               </div>
+
+              {formData.role === "karyawan" && (
+                <div className="space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <label className="text-xs font-semibold text-slate-600">
+                    Departemen <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Briefcase className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Contoh: IT, HRD, Finance"
+                      className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                      value={formData.department}
+                      onChange={(e) =>
+                        setFormData({ ...formData, department: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-600">

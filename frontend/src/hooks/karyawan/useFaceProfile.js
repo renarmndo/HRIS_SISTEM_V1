@@ -122,7 +122,7 @@ export default function useFaceProfile() {
         const descriptorArray = Array.from(faceDescriptor);
 
         const updateData = {
-          descriptor: descriptorArray,
+          face_embedding: descriptorArray,
           updatedAt: new Date().toISOString(),
         };
 

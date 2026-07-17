@@ -339,7 +339,7 @@ export default function KelolaLembur() {
                           {item.karyawan?.nama_lengkap}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {item.karyawan?.departement} -{" "}
+                          {item.karyawan?.department} -{" "}
                           {item.karyawan?.jabatan}
                         </p>
                       </div>

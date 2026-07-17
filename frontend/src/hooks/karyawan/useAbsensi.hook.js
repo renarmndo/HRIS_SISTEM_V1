@@ -61,8 +61,12 @@ export default function useAbsensiHook() {
           `✗ Verifikasi Wajah Gagal\n${serverMessage}${validationDistance}`,
           { duration: 4000, id: "absen-masuk" },
         );
+      } else {
+        toast.error(`✗ Gagal Absen Masuk\n${serverMessage}`, {
+          duration: 4000,
+          id: "absen-masuk",
+        });
       }
-      // Tidak ada else - pesan lain (seperti "sudah absen") tidak ditampilkan
 
       throw error;
     } finally {
@@ -116,8 +120,12 @@ export default function useAbsensiHook() {
           `✗ Verifikasi Wajah Gagal\n${serverMessage}${validationDistance}`,
           { duration: 4000, id: "absen-keluar" },
         );
+      } else {
+        toast.error(`✗ Gagal Absen Keluar\n${serverMessage}`, {
+          duration: 4000,
+          id: "absen-keluar",
+        });
       }
-      // Tidak ada else - pesan lain (seperti "sudah absen") tidak ditampilkan
 
       throw error;
     } finally {

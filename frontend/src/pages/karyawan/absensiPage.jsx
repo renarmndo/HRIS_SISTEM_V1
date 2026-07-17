@@ -48,6 +48,7 @@ const AbsensiPage = () => {
   });
   const [locationError, setLocationError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [stableCount, setStableCount] = useState(0);
 
   // Refs
   const videoRef = useRef(null);
@@ -276,12 +277,15 @@ const AbsensiPage = () => {
     setIsVideoReady(false);
     setIsProcessing(false);
     isProcessingRef.current = false; // Reset ref juga
+    setStableCount(0); // Reset progress stabilisasi
   };
 
   const startScanningFace = () => {
     setIsDetecting(true);
+    setStableCount(0);
     let attempts = 0;
-    const maxAttempts = 60; // 30 detik (jika interval 500ms)
+    const maxAttempts = 100; // 30 detik (jika interval 300ms)
+    let localStableCount = 0;
 
     if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
 
@@ -303,24 +307,60 @@ const AbsensiPage = () => {
         // Deteksi wajah
         const result = await detectFace(videoRef.current);
 
-        if (result && result.descriptor) {
-          // WAJAH DITEMUKAN -> STOP & BLOCK SEGERA
-          isProcessingRef.current = true; // Block dulu dengan ref
-          clearInterval(scanIntervalRef.current);
-          scanIntervalRef.current = null;
-          setIsProcessing(true);
-          setIsDetecting(false);
+        if (result) {
+          if (result.hasMask) {
+            localStableCount = 0;
+            setStableCount(0);
+            toast.warning("Masker terdeteksi! Silakan lepas masker Anda.", {
+              id: "occlusion-warning",
+              duration: 2000,
+            });
+            return;
+          }
+          if (result.hasGlasses) {
+            localStableCount = 0;
+            setStableCount(0);
+            toast.warning("Kacamata terdeteksi! Silakan lepas kacamata Anda.", {
+              id: "occlusion-warning",
+              duration: 2000,
+            });
+            return;
+          }
 
-          await processAbsensi(result.descriptor);
-        } else if (attempts >= maxAttempts) {
-          // TIMEOUT
-          clearInterval(scanIntervalRef.current);
-          stopCamera();
+          // Jika wajah bersih, hapus warning toast
+          toast.dismiss("occlusion-warning");
+
+          if (result.descriptor) {
+            localStableCount++;
+            setStableCount(localStableCount);
+
+            if (localStableCount >= 4) {
+              // WAJAH STABIL & DITEMUKAN -> STOP & BLOCK SEGERA
+              isProcessingRef.current = true; // Block dulu dengan ref
+              clearInterval(scanIntervalRef.current);
+              scanIntervalRef.current = null;
+              setIsProcessing(true);
+              setIsDetecting(false);
+
+              await processAbsensi(result.descriptor);
+            }
+          } else {
+            localStableCount = 0;
+            setStableCount(0);
+          }
+        } else {
+          localStableCount = 0;
+          setStableCount(0);
+          if (attempts >= maxAttempts) {
+            // TIMEOUT
+            clearInterval(scanIntervalRef.current);
+            stopCamera();
+          }
         }
       } catch (error) {
         console.error("Detection error", error);
       }
-    }, 500);
+    }, 300);
   };
 
   const processAbsensi = async (faceDescriptor) => {
@@ -337,18 +377,26 @@ const AbsensiPage = () => {
       await handleAbsensiMasuk(payload);
       // Refresh data absensi hari ini agar jam langsung terupdate
       await fetchDataAbsensiHariIni();
-      stopCamera();
+      // Delay penutupan kamera agar notifikasi sukses terbaca
+      setTimeout(() => {
+        stopCamera();
+      }, 1500);
     } catch (error) {
       console.error("Gagal Absen:", error);
       setIsProcessing(false);
-      stopCamera();
+      // Delay penutupan kamera agar notifikasi error terbaca
+      setTimeout(() => {
+        stopCamera();
+      }, 1500);
     }
   };
 
   const startScanningFaceKeluar = () => {
     setIsDetecting(true);
+    setStableCount(0);
     let attempts = 0;
-    const maxAttempts = 60; // 30 detik (jika interval 500ms)
+    const maxAttempts = 100; // 30 detik (jika interval 300ms)
+    let localStableCount = 0;
 
     if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
 
@@ -370,24 +418,60 @@ const AbsensiPage = () => {
         // Deteksi wajah
         const result = await detectFace(videoRef.current);
 
-        if (result && result.descriptor) {
-          // WAJAH DITEMUKAN -> STOP & BLOCK SEGERA
-          isProcessingRef.current = true; // Block dulu dengan ref
-          clearInterval(scanIntervalRef.current);
-          scanIntervalRef.current = null;
-          setIsProcessing(true);
-          setIsDetecting(false);
+        if (result) {
+          if (result.hasMask) {
+            localStableCount = 0;
+            setStableCount(0);
+            toast.warning("Masker terdeteksi! Silakan lepas masker Anda.", {
+              id: "occlusion-warning",
+              duration: 2000,
+            });
+            return;
+          }
+          if (result.hasGlasses) {
+            localStableCount = 0;
+            setStableCount(0);
+            toast.warning("Kacamata terdeteksi! Silakan lepas kacamata Anda.", {
+              id: "occlusion-warning",
+              duration: 2000,
+            });
+            return;
+          }
 
-          await absensiKeluar(result.descriptor);
-        } else if (attempts >= maxAttempts) {
-          // TIMEOUT
-          clearInterval(scanIntervalRef.current);
-          stopCamera();
+          // Jika wajah bersih, hapus warning toast
+          toast.dismiss("occlusion-warning");
+
+          if (result.descriptor) {
+            localStableCount++;
+            setStableCount(localStableCount);
+
+            if (localStableCount >= 4) {
+              // WAJAH STABIL & DITEMUKAN -> STOP & BLOCK SEGERA
+              isProcessingRef.current = true; // Block dulu dengan ref
+              clearInterval(scanIntervalRef.current);
+              scanIntervalRef.current = null;
+              setIsProcessing(true);
+              setIsDetecting(false);
+
+              await absensiKeluar(result.descriptor);
+            }
+          } else {
+            localStableCount = 0;
+            setStableCount(0);
+          }
+        } else {
+          localStableCount = 0;
+          setStableCount(0);
+          if (attempts >= maxAttempts) {
+            // TIMEOUT
+            clearInterval(scanIntervalRef.current);
+            stopCamera();
+          }
         }
       } catch (error) {
         console.error("Detection error", error);
       }
-    }, 500);
+    }, 300);
   };
 
   const absensiKeluar = async (faceDescriptor) => {
@@ -410,10 +494,16 @@ const AbsensiPage = () => {
       await handleAbsensiKeluar(payload);
       // Refresh data absensi hari ini agar jam langsung terupdate
       await fetchDataAbsensiHariIni();
-      stopCamera();
+      // Delay penutupan kamera agar notifikasi sukses terbaca
+      setTimeout(() => {
+        stopCamera();
+      }, 1500);
     } catch (error) {
       console.log(error);
-      stopCamera();
+      // Delay penutupan kamera agar notifikasi error terbaca
+      setTimeout(() => {
+        stopCamera();
+      }, 1500);
     }
   };
 
@@ -590,7 +680,9 @@ const AbsensiPage = () => {
                         }`}
                       ></div>
                       {isDetecting
-                        ? "Memindai Wajah..."
+                        ? stableCount > 0
+                          ? `Menyelaraskan (${stableCount * 25}%)...`
+                          : "Memindai Wajah..."
                         : isProcessing
                           ? "Mengirim Data..."
                           : backendLoading

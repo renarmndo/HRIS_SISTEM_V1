@@ -51,7 +51,7 @@ export default function DataKaryawan() {
     (k) =>
       k.nama_lengkap?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
       k.username?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      k.departement?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      k.department?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
       k.jabatan?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
@@ -170,7 +170,7 @@ export default function DataKaryawan() {
                     <td className="p-4">
                       <div className="flex items-center gap-2 text-gray-600">
                         <Building className="w-4 h-4 text-gray-400" />
-                        {user.departement}
+                        {user.department}
                       </div>
                     </td>
                     <td className="p-4">
@@ -258,7 +258,7 @@ export default function DataKaryawan() {
 
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Gaji Pokok (Rp)
+                Gaji Pokok (Rp) <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"

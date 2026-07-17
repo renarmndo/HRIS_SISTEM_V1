@@ -221,7 +221,7 @@ export default function KelolaAbsensiKaryawan() {
     (item) =>
       item.nama_lengkap?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
       item.jabatan?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      item.departement?.toLowerCase().includes(debouncedSearch.toLowerCase()),
+      item.department?.toLowerCase().includes(debouncedSearch.toLowerCase()),
   );
 
   // Pagination
@@ -518,7 +518,7 @@ export default function KelolaAbsensiKaryawan() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
-                      {item.departement || "-"}
+                      {item.department || "-"}
                     </td>
                     <td className="px-4 py-3">
                       {item.absensi?.jam_masuk ? (
@@ -647,7 +647,7 @@ export default function KelolaAbsensiKaryawan() {
                 {selectedKaryawan.nama_lengkap}
               </p>
               <p className="text-xs text-gray-500">
-                {selectedKaryawan.jabatan} - {selectedKaryawan.departement}
+                {selectedKaryawan.jabatan} - {selectedKaryawan.department}
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 Tanggal: {formatDisplayDate(selectedDate)}
@@ -657,7 +657,7 @@ export default function KelolaAbsensiKaryawan() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status Kehadiran
+              Status Kehadiran <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.status}
@@ -676,7 +676,7 @@ export default function KelolaAbsensiKaryawan() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Jam Masuk
+                  Jam Masuk <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="time"
@@ -762,7 +762,7 @@ export default function KelolaAbsensiKaryawan() {
                 {selectedKaryawan.nama_lengkap}
               </p>
               <p className="text-xs text-gray-500">
-                {selectedKaryawan.jabatan} - {selectedKaryawan.departement}
+                {selectedKaryawan.jabatan} - {selectedKaryawan.department}
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 Tanggal: {formatDisplayDate(selectedDate)}
@@ -772,7 +772,7 @@ export default function KelolaAbsensiKaryawan() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status Kehadiran
+              Status Kehadiran <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.status}
@@ -792,7 +792,7 @@ export default function KelolaAbsensiKaryawan() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Jam Masuk
+                Jam Masuk <span className="text-red-500">*</span>
               </label>
               <input
                 type="time"
@@ -868,7 +868,7 @@ export default function KelolaAbsensiKaryawan() {
                 {selectedKaryawan.nama_lengkap}
               </p>
               <p className="text-xs text-gray-500">
-                {selectedKaryawan.jabatan} - {selectedKaryawan.departement}
+                {selectedKaryawan.jabatan} - {selectedKaryawan.department}
               </p>
             </div>
           )}

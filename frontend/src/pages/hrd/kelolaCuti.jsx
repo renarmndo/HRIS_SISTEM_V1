@@ -526,7 +526,7 @@ const KelolaCutiPage = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Bulan
+                Bulan <span className="text-red-500">*</span>
               </label>
               <select
                 name="bulan"
@@ -544,7 +544,7 @@ const KelolaCutiPage = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tahun
+                Tahun <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -560,7 +560,7 @@ const KelolaCutiPage = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Total Hari Kerja
+                Total Hari Kerja <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -575,7 +575,7 @@ const KelolaCutiPage = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Kuota Cuti (hari)
+                Kuota Cuti (hari) <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -659,7 +659,7 @@ const KelolaCutiPage = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Keputusan
+              Keputusan <span className="text-red-500">*</span>
             </label>
             <div className="flex gap-3">
               <button

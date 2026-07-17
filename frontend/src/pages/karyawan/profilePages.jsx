@@ -38,6 +38,7 @@ export default function ProfilePages() {
   const [faceDetectionStatus, setFaceDetectionStatus] = useState(null); // 'scanning', 'success', 'no_face', 'error'
   const [isDetecting, setIsDetecting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [stableCount, setStableCount] = useState(0);
 
   // --- REFS ---
   const videoRef = useRef(null);
@@ -191,6 +192,7 @@ export default function ProfilePages() {
     setIsCapturing(false);
     setIsDetecting(false);
     setIsVideoReady(false);
+    setStableCount(0); // Reset progress stabilisasi
   };
 
   const captureSnapshot = () => {
@@ -231,11 +233,13 @@ export default function ProfilePages() {
     }
 
     setIsDetecting(true);
+    setStableCount(0);
     setFaceDetectionStatus("scanning");
     toast.info("Tahan posisi wajah, sedang memindai...", { id: "face-scan" });
 
     let attempts = 0;
-    const maxAttempts = 20; // +- 10 detik
+    const maxAttempts = 100; // 30 detik (jika interval 300ms)
+    let localStableCount = 0;
 
     // Bersihkan interval lama jika ada
     if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
@@ -255,24 +259,63 @@ export default function ProfilePages() {
       try {
         const result = await detectFace(videoRef.current);
 
-        if (result && result.descriptor) {
-          // WAJAH DITEMUKAN
-          clearInterval(scanIntervalRef.current);
+        if (result) {
+          if (result.hasMask) {
+            localStableCount = 0;
+            setStableCount(0);
+            toast.warning("Masker terdeteksi! Silakan lepas masker Anda sebelum meregistrasi wajah.", {
+              id: "profile-face-scan-warning",
+              duration: 2000,
+            });
+            return;
+          }
+          if (result.hasGlasses) {
+            localStableCount = 0;
+            setStableCount(0);
+            toast.warning("Kacamata terdeteksi! Silakan lepas kacamata Anda sebelum meregistrasi wajah.", {
+              id: "profile-face-scan-warning",
+              duration: 2000,
+            });
+            return;
+          }
 
-          setFaceDescriptor(result.descriptor);
-          setFaceDetectionStatus("success");
-          toast.success("Wajah berhasil dipindai!", { id: "face-scan" });
+          // Hapus warning jika wajah bersih
+          toast.dismiss("profile-face-scan-warning");
 
-          captureSnapshot();
-          stopCamera();
-        } else if (attempts >= maxAttempts) {
-          // TIMEOUT
-          clearInterval(scanIntervalRef.current);
-          setFaceDetectionStatus("no_face");
-          toast.warning("Wajah tidak terdeteksi. Pastikan pencahayaan cukup.", {
-            id: "face-scan",
-          });
-          setIsDetecting(false);
+          if (result.descriptor) {
+            localStableCount++;
+            setStableCount(localStableCount);
+
+            if (localStableCount >= 4) {
+              // WAJAH STABIL -> SELESAI
+              clearInterval(scanIntervalRef.current);
+
+              setFaceDescriptor(result.descriptor);
+              setFaceDetectionStatus("success");
+              toast.success("Wajah berhasil dipindai!", { id: "face-scan" });
+
+              captureSnapshot();
+              // Delay penutupan kamera agar user bisa melihat status sukses
+              setTimeout(() => {
+                stopCamera();
+              }, 1500);
+            }
+          } else {
+            localStableCount = 0;
+            setStableCount(0);
+          }
+        } else {
+          localStableCount = 0;
+          setStableCount(0);
+          if (attempts >= maxAttempts) {
+            // TIMEOUT
+            clearInterval(scanIntervalRef.current);
+            setFaceDetectionStatus("no_face");
+            toast.warning("Wajah tidak terdeteksi. Pastikan pencahayaan cukup.", {
+              id: "face-scan",
+            });
+            setIsDetecting(false);
+          }
         }
       } catch (error) {
         console.error("Scan error:", error);
@@ -280,7 +323,7 @@ export default function ProfilePages() {
         setFaceDetectionStatus("error");
         setIsDetecting(false);
       }
-    }, 500); // Scan setiap 500ms
+    }, 300); // Scan setiap 300ms
   };
 
   const handleSaveOrUpdate = async () => {
@@ -445,7 +488,9 @@ export default function ProfilePages() {
                             }`}
                           ></div>
                           {isDetecting
-                            ? "Memindai Wajah..."
+                            ? stableCount > 0
+                              ? `Menyelaraskan (${stableCount * 25}%)...`
+                              : "Memindai Wajah..."
                             : isVideoReady
                               ? "Kamera Siap"
                               : "Loading..."}
@@ -733,7 +778,7 @@ export default function ProfilePages() {
                         <Building size={12} /> Departemen
                       </label>
                       <div className="px-4 py-2.5 bg-gray-50 rounded-lg text-sm text-gray-700 border border-gray-100 font-medium">
-                        {profile.departement || "-"}
+                        {profile.department || "-"}
                       </div>
                     </div>
 

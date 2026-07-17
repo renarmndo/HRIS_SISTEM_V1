@@ -82,10 +82,11 @@ const InputGroup = ({
   half = false,
   isEditing,
   onChange,
+  required = false,
 }) => (
   <div className={`${half ? "col-span-1" : "col-span-2"}`}>
     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
-      <Icon className="w-3.5 h-3.5" /> {label}
+      <Icon className="w-3.5 h-3.5" /> {label} {required && <span className="text-red-500">*</span>}
     </label>
     {isEditing ? (
       <div className="relative">
@@ -94,6 +95,7 @@ const InputGroup = ({
           name={name}
           value={value}
           onChange={onChange}
+          required={required}
           step={type === "number" ? "any" : undefined}
           className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-white"
           placeholder={placeholder}
@@ -120,11 +122,11 @@ const LokasiKantorPage = () => {
   // --- 1. STATE FORM DATA ---
   const [formData, setFormData] = useState({
     nama_perusahaan: "",
-    latitude: 0,
-    longitude: 0,
-    radius_absen_meter: 0,
-    jam_masuk: "",
-    jam_keluar: "",
+    latitude: -6.200000,
+    longitude: 106.816666,
+    radius_absen_meter: 100,
+    jam_masuk: "08:00",
+    jam_keluar: "17:00",
   });
 
   const {
@@ -174,7 +176,7 @@ const LokasiKantorPage = () => {
       ...formData,
       latitude: parseFloat(formData.latitude),
       longitude: parseFloat(formData.longitude),
-      radius_absen_meter: parseInt(formData.radius_absen_meter) || 0,
+      radius_absen_meter: parseInt(formData.radius_absen_meter, 10) || 100,
     };
     await useCreateLokasi(payload);
     setIsEditing(false);
@@ -185,6 +187,7 @@ const LokasiKantorPage = () => {
       ...formData,
       latitude: parseFloat(formData.latitude),
       longitude: parseFloat(formData.longitude),
+      radius_absen_meter: parseInt(formData.radius_absen_meter, 10) || 100,
     };
 
     await useUpdateLokasi(lokasiKantor.id, payload);
@@ -271,6 +274,7 @@ const LokasiKantorPage = () => {
               }
               isEditing={isEditing}
               onChange={handleChange}
+              required={true}
             />
 
             <div className="col-span-2 border-t border-gray-100 my-1"></div>
@@ -284,6 +288,7 @@ const LokasiKantorPage = () => {
               isEditing={isEditing}
               onChange={handleChange}
               half
+              required={true}
             />
             <InputGroup
               label="Longitude"
@@ -294,6 +299,7 @@ const LokasiKantorPage = () => {
               isEditing={isEditing}
               onChange={handleChange}
               half
+              required={true}
             />
 
             <InputGroup
@@ -308,6 +314,7 @@ const LokasiKantorPage = () => {
               }
               isEditing={isEditing}
               onChange={handleChange}
+              required={true}
             />
 
             <InputGroup
@@ -318,6 +325,7 @@ const LokasiKantorPage = () => {
               value={isEditing ? formData.jam_masuk : lokasiKantor?.jam_masuk}
               isEditing={isEditing}
               onChange={handleChange}
+              required={true}
             />
             <InputGroup
               label="Jam Pulang"
@@ -327,6 +335,7 @@ const LokasiKantorPage = () => {
               value={isEditing ? formData.jam_keluar : lokasiKantor?.jam_keluar}
               isEditing={isEditing}
               onChange={handleChange}
+              required={true}
             />
           </div>
 
