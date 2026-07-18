@@ -544,18 +544,16 @@ export default class AbsensiController {
       }
       const karyawan_id = karyawan.id;
 
-      const startHari = new Date();
-      startHari.setHours(0, 0, 0, 0);
-
-      const endHari = new Date();
-      endHari.setHours(23, 59, 59, 999);
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const tanggalDB = `${year}-${month}-${day}`;
 
       const absensiHariIni = await AbsensiKaryawanModel.findOne({
         where: {
           karyawan_id: karyawan_id,
-          createdAt: {
-            [Op.between]: [startHari, endHari],
-          },
+          tanggal: tanggalDB,
         },
       });
 
