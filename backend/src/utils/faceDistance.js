@@ -1,4 +1,31 @@
 export function validateDistance(arr1, arr2) {
+  // Parsing defensively if values are stored/sent as JSON strings
+  if (typeof arr1 === "string") {
+    try {
+      arr1 = JSON.parse(arr1);
+    } catch (e) {
+      console.error("validateDistance: Failed to parse arr1:", e);
+    }
+  }
+  if (typeof arr2 === "string") {
+    try {
+      arr2 = JSON.parse(arr2);
+    } catch (e) {
+      console.error("validateDistance: Failed to parse arr2:", e);
+    }
+  }
+  // Handle double-serialized JSON strings
+  if (typeof arr1 === "string") {
+    try {
+      arr1 = JSON.parse(arr1);
+    } catch (e) {}
+  }
+  if (typeof arr2 === "string") {
+    try {
+      arr2 = JSON.parse(arr2);
+    } catch (e) {}
+  }
+
   if (!Array.isArray(arr1) || !Array.isArray(arr2)) return Infinity;
   if (arr1.length === 0 || arr2.length === 0) return Infinity;
   if (arr1.length !== arr2.length) return Infinity;

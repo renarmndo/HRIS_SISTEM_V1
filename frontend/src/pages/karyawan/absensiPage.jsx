@@ -13,6 +13,34 @@ const TIME_FORMATTER = new Intl.DateTimeFormat("id-ID", {
   minute: "2-digit",
   second: "2-digit",
 });
+
+const namaHari = {
+  Sunday: "Minggu",
+  Monday: "Senin",
+  Tuesday: "Selasa",
+  Wednesday: "Rabu",
+  Thursday: "Kamis",
+  Friday: "Jumat",
+  Saturday: "Sabtu",
+};
+
+const getStatusBadge = (status) => {
+  const badges = {
+    masuk: { bg: "bg-green-100 text-green-700", label: "Hadir" },
+    terlambat: { bg: "bg-yellow-100 text-yellow-700", label: "Terlambat" },
+    cuti: { bg: "bg-blue-100 text-blue-700", label: "Cuti" },
+    izin: { bg: "bg-purple-100 text-purple-700", label: "Izin" },
+    sakit: { bg: "bg-orange-100 text-orange-700", label: "Sakit" },
+    tidak_hadir: { bg: "bg-red-100 text-red-700", label: "Tidak Hadir" },
+    libur: { bg: "bg-gray-100 text-gray-700", label: "Libur" },
+  };
+  const badge = badges[status] || { bg: "bg-red-100 text-red-700", label: "Tidak Hadir" };
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${badge.bg}`}>
+      {badge.label}
+    </span>
+  );
+};
 import {
   MapPin,
   Camera,
@@ -66,6 +94,8 @@ const AbsensiPage = () => {
     absensiHariIni,
     fetchDataAbsensiHariIni,
     absensiMasuk,
+    absensiMingguan = [],
+    fetchDataAbsensiMingguan,
   } = useAbsensiHook();
 
   const {
@@ -377,6 +407,8 @@ const AbsensiPage = () => {
       await handleAbsensiMasuk(payload);
       // Refresh data absensi hari ini agar jam langsung terupdate
       await fetchDataAbsensiHariIni();
+      await fetchDataAbsensi();
+      await fetchDataAbsensiMingguan();
       // Delay penutupan kamera agar notifikasi sukses terbaca
       setTimeout(() => {
         stopCamera();
@@ -384,10 +416,22 @@ const AbsensiPage = () => {
     } catch (error) {
       console.error("Gagal Absen:", error);
       setIsProcessing(false);
-      // Delay penutupan kamera agar notifikasi error terbaca
-      setTimeout(() => {
-        stopCamera();
-      }, 1500);
+      isProcessingRef.current = false; // Reset processing flag so we can scan again
+
+      const serverMessage = error.response?.data?.msg || "";
+      if (serverMessage.toLowerCase().includes("wajah") || serverMessage.toLowerCase().includes("cocok")) {
+        toast.error("Verifikasi Wajah Gagal. Mencoba kembali dalam 3 detik...", { id: "absen-masuk" });
+        setTimeout(() => {
+          if (streamRef.current) {
+            startScanningFace();
+          }
+        }, 3000);
+      } else {
+        // Delay penutupan kamera agar notifikasi error terbaca
+        setTimeout(() => {
+          stopCamera();
+        }, 1500);
+      }
     }
   };
 
@@ -494,16 +538,31 @@ const AbsensiPage = () => {
       await handleAbsensiKeluar(payload);
       // Refresh data absensi hari ini agar jam langsung terupdate
       await fetchDataAbsensiHariIni();
+      await fetchDataAbsensi();
+      await fetchDataAbsensiMingguan();
       // Delay penutupan kamera agar notifikasi sukses terbaca
       setTimeout(() => {
         stopCamera();
       }, 1500);
     } catch (error) {
       console.log(error);
-      // Delay penutupan kamera agar notifikasi error terbaca
-      setTimeout(() => {
-        stopCamera();
-      }, 1500);
+      setIsProcessing(false);
+      isProcessingRef.current = false; // Reset processing flag so we can scan again
+
+      const serverMessage = error.response?.data?.msg || "";
+      if (serverMessage.toLowerCase().includes("wajah") || serverMessage.toLowerCase().includes("cocok")) {
+        toast.error("Verifikasi Wajah Gagal. Mencoba kembali dalam 3 detik...", { id: "absen-keluar" });
+        setTimeout(() => {
+          if (streamRef.current) {
+            startScanningFaceKeluar();
+          }
+        }, 3000);
+      } else {
+        // Delay penutupan kamera agar notifikasi error terbaca
+        setTimeout(() => {
+          stopCamera();
+        }, 1500);
+      }
     }
   };
 
@@ -528,10 +587,8 @@ const AbsensiPage = () => {
 
   useEffect(() => {
     fetchDataAbsensiHariIni();
-  }, []);
-
-  useEffect(() => {
     fetchDataAbsensi();
+    fetchDataAbsensiMingguan();
   }, []);
 
   // --- HITUNGAN STATUS KEHADIRAN ---
@@ -1069,8 +1126,75 @@ const AbsensiPage = () => {
               )}
             </div>
           </div>
+
+            {/* Riwayat Absensi Mingguan Table */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm mt-4">
+              <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                  <Calendar size={18} className="text-gray-600" />
+                  Riwayat Absensi Minggu Ini
+                </h3>
+                <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2.5 py-1 rounded-full">
+                  {absensiMingguan.length} Hari Kerja
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-gray-50/30 text-gray-500 text-xs uppercase font-semibold border-b border-gray-100">
+                      <th className="px-4 py-3">Hari, Tanggal</th>
+                      <th className="px-4 py-3">Jam Masuk</th>
+                      <th className="px-4 py-3">Jam Keluar</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Keterangan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {absensiMingguan.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="px-4 py-8 text-center text-gray-400">
+                          Belum ada riwayat absensi minggu ini.
+                        </td>
+                      </tr>
+                    ) : (
+                      absensiMingguan.map((item, idx) => {
+                        const dayName = namaHari[item.hari] || item.hari;
+                        const formattedItemDate = item.tanggal
+                          ? new Date(item.tanggal).toLocaleDateString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : "";
+                        
+                        return (
+                          <tr key={idx} className="hover:bg-gray-50/30 transition-colors">
+                            <td className="px-4 py-3.5 font-medium text-gray-900">
+                              {dayName}, {formattedItemDate}
+                            </td>
+                            <td className="px-4 py-3.5 text-gray-600 font-mono">
+                              {item.jam_masuk ? item.jam_masuk.slice(0, 5) : "-"}
+                            </td>
+                            <td className="px-4 py-3.5 text-gray-600 font-mono">
+                              {item.jam_keluar ? item.jam_keluar.slice(0, 5) : "-"}
+                            </td>
+                            <td className="px-4 py-3.5">
+                              {getStatusBadge(item.status)}
+                            </td>
+                            <td className="px-4 py-3.5 text-xs text-gray-500 max-w-[250px] truncate" title={item.keterangan}>
+                              {item.keterangan || "-"}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
       {/* Styles for Animation */}
       <style>{`

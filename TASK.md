@@ -50,6 +50,13 @@ Tanpa ini, sistem bisa dieksploitasi sebelum dipakai.
 - [x] **1.10** Tambah null-check `req.user` di `roleAccess.js`
   - File: `backend/src/middleware/roleAccess.js:3`
   - Test: Route tanpa `authMiddleware` -> 401, bukan 500
+- [x] Remove 5-minute login rate-limit from backend app.js
+- [x] Implement robust JSON string array parsing in backend faceDistance.js
+- [x] Relax face matching threshold to 0.6 and add parsing safety to backend absensi.controller.js
+- [x] Add weekly attendance history table and camera retry flow in frontend absensiPage.jsx
+- [x] Fix updateFaceProfile arguments mismatch in frontend useFaceProfile.js
+- [x] Reduce seed-dummy.js employee count from 10 to 3
+- [x] Verify everything works properly by running dummy seeder and checking functions
 
 ---
 

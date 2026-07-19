@@ -76,15 +76,15 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// SECURITY (Task 4.8): rate-limit khusus login (5 percobaan / 5 menit / IP).
-const loginLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { msg: "Terlalu banyak percobaan login, coba lagi dalam 5 menit" },
-});
-app.use("/api/v1/auth/login", loginLimiter);
+// SECURITY (Task 4.8): rate-limit khusus login (5 percobaan / 5 menit / IP) - REMOVED
+// const loginLimiter = rateLimit({
+//   windowMs: 5 * 60 * 1000,
+//   max: 5,
+//   standardHeaders: true,
+//   legacyHeaders: false,
+//   message: { msg: "Terlalu banyak percobaan login, coba lagi dalam 5 menit" },
+// });
+// app.use("/api/v1/auth/login", loginLimiter);
 
 // routes
 app.use("/api/v1", authRoutes);

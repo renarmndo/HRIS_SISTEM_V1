@@ -45,7 +45,7 @@ async function seedDummy() {
     const hashedPassword = await argon2.hash("password123");
     
     const hrdUsers = [];
-    for (let i = 1; i <= 2; i++) {
+    for (let i = 1; i <= 1; i++) {
       const hrd = await UsersModel.create({
         username: `hrd_${i}`,
         email: `hrd${i}@company.com`,
@@ -57,7 +57,7 @@ async function seedDummy() {
     }
 
     const karyawanUsers = [];
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 3; i++) {
       const kryUser = await UsersModel.create({
         username: `karyawan_${i}`,
         email: `karyawan${i}@company.com`,
@@ -134,7 +134,7 @@ async function seedDummy() {
     const karyawanList = [];
     const namaBelakang = ["Pratama", "Sari", "Wijaya", "Kurniawan", "Lestari", "Hidayat", "Putri", "Setiawan", "Utami", "Santoso"];
     
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 3; i++) {
       const user = karyawanUsers[i];
       const deptIdx = i % departments.length;
       const jabSubIdx = i % 2;
@@ -158,7 +158,7 @@ async function seedDummy() {
     // 7. Seeding KaryawanFaceModel (10 Data Wajah 1:1 Karyawan)
     console.log("Seeding Wajah Karyawan...");
     const faceList = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 3; i++) {
       const karyawan = karyawanList[i];
       const embedding = Array.from({ length: 128 }, () => Math.random() * 0.2 - 0.1); // Dummy 128 float embedding
       const face = await KaryawanFaceModel.create({
@@ -176,7 +176,7 @@ async function seedDummy() {
     const absensiList = [];
     const workingDays = ["2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17"]; // Senin-Jumat
 
-    for (let k = 0; k < 10; k++) {
+    for (let k = 0; k < 3; k++) {
       const karyawan = karyawanList[k];
       for (let d = 0; d < workingDays.length; d++) {
         const tanggal = workingDays[d];
@@ -231,9 +231,9 @@ async function seedDummy() {
     // 9. Seeding LemburModel (10 Data Lembur)
     console.log("Seeding Lembur...");
     const lemburList = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 3; i++) {
       const karyawan = karyawanList[i];
-      const approvedBy = hrdUsers[i % 2].id;
+      const approvedBy = hrdUsers[i % hrdUsers.length].id;
       const lembur = await LemburModel.create({
         karyawan_id: karyawan.id,
         tanggal: "2026-07-15",
@@ -254,9 +254,9 @@ async function seedDummy() {
     console.log("Seeding Pengajuan Cuti...");
     const cutiList = [];
     const jenisCuti = ["tahunan", "sakit", "penting", "lainnya"];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 3; i++) {
       const karyawan = karyawanList[i];
-      const approvedBy = hrdUsers[i % 2].id;
+      const approvedBy = hrdUsers[i % hrdUsers.length].id;
       const statusCuti = i % 3 === 0 ? "pending" : i % 3 === 1 ? "disetujui" : "ditolak";
       
       const cuti = await PengajuanCutiModel.create({
@@ -278,7 +278,7 @@ async function seedDummy() {
     // 11. Seeding SlipGajiModel (10 Slip Gaji - 1 per Karyawan di bulan Juni 2026)
     console.log("Seeding Slip Gaji...");
     const slipList = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 3; i++) {
       const karyawan = karyawanList[i];
       const gajiPokok = parseFloat(karyawan.gaji_pokok);
       
@@ -321,7 +321,7 @@ async function seedDummy() {
     const compTransport = komponenList.find(c => c.nama === "Tunjangan Transport");
     const compBpjsKes = komponenList.find(c => c.nama === "Potongan BPJS Kesehatan");
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 3; i++) {
       const slip = slipList[i];
 
       // Tambah detail bonus transport
@@ -351,17 +351,17 @@ async function seedDummy() {
     console.log("\n==================================================");
     console.log("DUMMY DATA SEEDING COMPLETED SUCCESSFULLY!");
     console.log("==================================================");
-    console.log(`- Users Model         : 12 data (2 HRD, 10 Karyawan)`);
-    console.log(`- Karyawan Model      : 10 data`);
-    console.log(`- Face Karyawan Model : 10 data`);
+    console.log(`- Users Model         : 4 data (1 HRD, 3 Karyawan)`);
+    console.log(`- Karyawan Model      : 3 data`);
+    console.log(`- Face Karyawan Model : 3 data`);
     console.log(`- Lokasi Kantor Model : 10 data`);
     console.log(`- Kuota Cuti Model    : 10 data`);
     console.log(`- Komponen Gaji Model : 10 data`);
-    console.log(`- Absensi Model       : 50 data`);
-    console.log(`- Lembur Model        : 10 data`);
-    console.log(`- Pengajuan Cuti Model: 10 data`);
-    console.log(`- Slip Gaji Model     : 10 data`);
-    console.log(`- Detail Slip Model   : 20 data`);
+    console.log(`- Absensi Model       : 15 data`);
+    console.log(`- Lembur Model        : 3 data`);
+    console.log(`- Pengajuan Cuti Model: 3 data`);
+    console.log(`- Slip Gaji Model     : 3 data`);
+    console.log(`- Detail Slip Model   : 6 data`);
     console.log("==================================================");
 
     process.exit(0);

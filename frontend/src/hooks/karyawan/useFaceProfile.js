@@ -126,7 +126,7 @@ export default function useFaceProfile() {
           updatedAt: new Date().toISOString(),
         };
 
-        const response = await updateFace(faceProfile.id, updateData);
+        const response = await updateFace(updateData);
 
         toast.success("Wajah berhasil diperbarui", {
           duration: 2000,
