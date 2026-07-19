@@ -26,6 +26,14 @@ export function validateDistance(arr1, arr2) {
     } catch (e) {}
   }
 
+  // FIX: Handle cases where Sequelize/Network returns an object with numeric keys instead of an array
+  if (arr1 && typeof arr1 === "object" && !Array.isArray(arr1)) {
+    arr1 = Object.values(arr1);
+  }
+  if (arr2 && typeof arr2 === "object" && !Array.isArray(arr2)) {
+    arr2 = Object.values(arr2);
+  }
+
   if (!Array.isArray(arr1) || !Array.isArray(arr2)) return Infinity;
   if (arr1.length === 0 || arr2.length === 0) return Infinity;
   if (arr1.length !== arr2.length) return Infinity;

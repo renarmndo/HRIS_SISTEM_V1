@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import useProfile from "../../hooks/karyawan/profile.hook";
 import useFaceProfile from "../../hooks/karyawan/useFaceProfile";
 import useFaceAPI from "../../hooks/karyawan/useFaceapi.hook";
+import * as faceapi from "face-api.js";
 import {
   Camera,
   User,
@@ -43,6 +44,7 @@ export default function ProfilePages() {
   // --- REFS ---
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const overlayRef = useRef(null);
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
 
@@ -193,6 +195,11 @@ export default function ProfilePages() {
     setIsDetecting(false);
     setIsVideoReady(false);
     setStableCount(0); // Reset progress stabilisasi
+
+    if (overlayRef.current) {
+      const ctx = overlayRef.current.getContext("2d");
+      ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+    }
   };
 
   const captureSnapshot = () => {
@@ -260,6 +267,20 @@ export default function ProfilePages() {
         const result = await detectFace(videoRef.current);
 
         if (result) {
+          // --- DRAW LANDMARKS ---
+          if (overlayRef.current && videoRef.current) {
+            const displaySize = {
+              width: videoRef.current.videoWidth,
+              height: videoRef.current.videoHeight,
+            };
+            faceapi.matchDimensions(overlayRef.current, displaySize);
+            const resizedDetections = faceapi.resizeResults(result.rawDetection, displaySize);
+            const ctx = overlayRef.current.getContext('2d');
+            ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+            faceapi.draw.drawDetections(overlayRef.current, resizedDetections);
+            faceapi.draw.drawFaceLandmarks(overlayRef.current, resizedDetections);
+          }
+
           if (result.hasMask) {
             localStableCount = 0;
             setStableCount(0);
@@ -307,6 +328,10 @@ export default function ProfilePages() {
         } else {
           localStableCount = 0;
           setStableCount(0);
+          if (overlayRef.current) {
+            const ctx = overlayRef.current.getContext('2d');
+            ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+          }
           if (attempts >= maxAttempts) {
             // TIMEOUT
             clearInterval(scanIntervalRef.current);
@@ -460,6 +485,12 @@ export default function ProfilePages() {
                           }}
                           onPlaying={() => setIsVideoReady(true)}
                           className="w-full h-full object-cover"
+                          style={{ transform: "scaleX(-1)" }}
+                        />
+
+                        <canvas
+                          ref={overlayRef}
+                          className="absolute inset-0 w-full h-full"
                           style={{ transform: "scaleX(-1)" }}
                         />
 

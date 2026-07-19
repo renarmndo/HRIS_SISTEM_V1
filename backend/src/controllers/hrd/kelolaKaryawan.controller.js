@@ -13,7 +13,7 @@ export default class KelolaKaryawanController {
           {
             model: KaryawanModel,
             as: "profile",
-            attributes: ["id", "department"],
+            attributes: ["id", "department", "jabatan"],
           },
         ],
       });

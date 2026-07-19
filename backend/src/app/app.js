@@ -66,13 +66,14 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 
 // SECURITY (Task 4.8): rate-limit global (100 req / 15 min / IP).
-// Override di /auth/login dengan limiter lebih ketat.
+// Skip /auth/login agar tidak ada limit request saat login.
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { msg: "Terlalu banyak request, coba lagi nanti" },
+  skip: (req) => req.path.includes("/auth/login") || req.originalUrl.includes("/auth/login"),
 });
 app.use(globalLimiter);
 

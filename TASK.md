@@ -56,7 +56,9 @@ Tanpa ini, sistem bisa dieksploitasi sebelum dipakai.
 - [x] Add weekly attendance history table and camera retry flow in frontend absensiPage.jsx
 - [x] Fix updateFaceProfile arguments mismatch in frontend useFaceProfile.js
 - [x] Reduce seed-dummy.js employee count from 10 to 3
-- [x] Verify everything works properly by running dummy seeder and checking functions
+- [x] Allow HRD to manually type Jabatan & Departemen when creating or editing users (full HRD control)
+- [x] Completely bypass rate-limiting on login requests (/auth/login)
+- [x] Verify everything works properly
 
 ---
 

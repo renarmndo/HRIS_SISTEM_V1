@@ -11,10 +11,7 @@ const ALLOWED_STATUS = new Set(["aktif", "tidak_aktif"]);
 export default class AuthController {
   static async register(req, res) {
     try {
-      // SECURITY (Task 4.9): Abaikan field `role` & `status` dari body.
-      // Client tidak boleh menentukan hak akses user baru. roleMiddleware("hrd")
-      // sudah ada di route; ini defense-in-depth.
-      const { username, email, password, department } = req.body;
+      const { username, email, password, role, status, department, jabatan } = req.body;
 
       // SECURITY (Task 4.2): schema validation sederhana
       if (!isNonEmptyString(username, { minLen: 3, maxLen: 50 })) {
@@ -32,11 +29,9 @@ export default class AuthController {
           msg: "Password harus 6-128 karakter",
         });
       }
-      if (!isNonEmptyString(department, { minLen: 1, maxLen: 100 })) {
-        return res.status(400).json({
-          msg: "Departemen harus diisi dan maksimal 100 karakter",
-        });
-      }
+
+      const userRole = ALLOWED_ROLES.has(role) ? role : "karyawan";
+      const userStatus = ALLOWED_STATUS.has(status) ? status : "aktif";
 
       //   cek apakah sudah ada email
       const users = await UsersModel.findOne({
@@ -69,27 +64,27 @@ export default class AuthController {
       //   create new user and employee profile in a transaction
       let result;
       await sequelize.transaction(async (t) => {
-        // SECURITY (Task 1.1): role & status hardcoded server-side.
-        // Jangan pernah percaya client untuk menentukan role user baru.
         result = await UsersModel.create({
           username: username,
           email: email,
           password: hashedPassword,
-          role: "karyawan",
-          status: "aktif",
+          role: userRole,
+          status: userStatus,
         }, { transaction: t });
 
-        // Buat profil karyawan default secara otomatis
-        await KaryawanModel.create({
-          user_id: result.id,
-          nama_lengkap: username,
-          tanggal_masuk: new Date(),
-          alamat: "-",
-          department: department,
-          jabatan: "Karyawan",
-          gaji_pokok: 0,
-          is_active: true,
-        }, { transaction: t });
+        // Buat profil karyawan default secara otomatis jika role karyawan
+        if (userRole === "karyawan") {
+          await KaryawanModel.create({
+            user_id: result.id,
+            nama_lengkap: username,
+            tanggal_masuk: new Date(),
+            alamat: "-",
+            department: department || "-",
+            jabatan: jabatan || "Karyawan",
+            gaji_pokok: 0,
+            is_active: userStatus === "aktif",
+          }, { transaction: t });
+        }
       });
 
       // hilangkan password dari object
@@ -195,7 +190,7 @@ export default class AuthController {
   static async updatePassword(req, res) {
     try {
       const { id } = req.params;
-      const { username, email, password, role, status, department } = req.body;
+      const { username, email, password, role, status, department, jabatan } = req.body;
 
       // SECURITY (Task 4.2): UUID validation
       if (!isValidUUID(id)) {
@@ -216,9 +211,6 @@ export default class AuthController {
       }
       if (!isValidEmail(email)) {
         return res.status(400).json({ msg: "Format email tidak valid" });
-      }
-      if (role === "karyawan" && !isNonEmptyString(department, { minLen: 1, maxLen: 100 })) {
-        return res.status(400).json({ msg: "Departemen harus diisi dan maksimal 100 karakter" });
       }
 
       const user = await UsersModel.findOne({ where: { id } });
@@ -251,13 +243,16 @@ export default class AuthController {
       await sequelize.transaction(async (t) => {
         await UsersModel.update(updateData, { where: { id }, transaction: t });
 
-        // Sinkronisasi status & department ke m_karyawan jika user adalah/menjadi karyawan
+        // Sinkronisasi status, department & jabatan ke m_karyawan jika user adalah/menjadi karyawan
         if (role === "karyawan" || user.role === "karyawan") {
           const profileUpdate = {
             is_active: status === "aktif"
           };
           if (department !== undefined) {
             profileUpdate.department = department;
+          }
+          if (jabatan !== undefined) {
+            profileUpdate.jabatan = jabatan;
           }
 
           const existingProfile = await KaryawanModel.findOne({ where: { user_id: id }, transaction: t });
@@ -270,7 +265,7 @@ export default class AuthController {
               tanggal_masuk: new Date(),
               alamat: "-",
               department: department || "-",
-              jabatan: "Karyawan",
+              jabatan: jabatan || "Karyawan",
               gaji_pokok: 0,
               is_active: status === "aktif"
             }, { transaction: t });

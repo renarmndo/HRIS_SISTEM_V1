@@ -44,9 +44,10 @@ const MasterUserHRD = () => {
     username: "",
     email: "",
     password: "",
-    role: "",
+    role: "karyawan",
     status: "aktif",
     department: "",
+    jabatan: "",
   });
 
   // --- Handlers ---
@@ -56,9 +57,10 @@ const MasterUserHRD = () => {
       username: "",
       email: "",
       password: "",
-      role: "",
+      role: "karyawan",
       status: "aktif",
       department: "",
+      jabatan: "",
     });
     setIsModalOpen(true);
   };
@@ -73,6 +75,7 @@ const MasterUserHRD = () => {
       role: user.role,
       status: user.status,
       department: user.profile?.department || "",
+      jabatan: user.profile?.jabatan || "",
     });
     setIsModalOpen(true);
   };
@@ -210,9 +213,9 @@ const MasterUserHRD = () => {
                           <p className="text-xs text-gray-500 flex items-center gap-1">
                             <Mail className="w-3 h-3" /> {user.email}
                           </p>
-                          {user.role === "karyawan" && user.profile?.department && (
+                          {user.role === "karyawan" && (user.profile?.department || user.profile?.jabatan) && (
                             <p className="text-xs text-cyan-600 font-medium flex items-center gap-1 mt-0.5">
-                              <Briefcase className="w-3 h-3" /> {user.profile.department}
+                              <Briefcase className="w-3 h-3" /> {user.profile?.department || "-"} {user.profile?.jabatan ? `• ${user.profile.jabatan}` : ""}
                             </p>
                           )}
                         </div>
@@ -397,22 +400,40 @@ const MasterUserHRD = () => {
               </div>
 
               {formData.role === "karyawan" && (
-                <div className="space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <label className="text-xs font-semibold text-slate-600">
-                    Departemen <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Briefcase className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
-                    <input
-                      type="text"
-                      required
-                      placeholder="Contoh: IT, HRD, Finance"
-                      className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
-                      value={formData.department}
-                      onChange={(e) =>
-                        setFormData({ ...formData, department: e.target.value })
-                      }
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-600">
+                      Departemen
+                    </label>
+                    <div className="relative">
+                      <Briefcase className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Contoh: IT, HRD, Finance"
+                        className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                        value={formData.department}
+                        onChange={(e) =>
+                          setFormData({ ...formData, department: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-600">
+                      Jabatan
+                    </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Contoh: Staff, Supervisor, Lead"
+                        className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                        value={formData.jabatan}
+                        onChange={(e) =>
+                          setFormData({ ...formData, jabatan: e.target.value })
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
               )}

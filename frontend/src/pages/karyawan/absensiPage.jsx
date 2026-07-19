@@ -61,6 +61,7 @@ import { toast } from "sonner"; // Pastikan install sonner atau ganti dengan lib
 // Hooks
 import useAbsensiHook from "../../hooks/karyawan/useAbsensi.hook";
 import useFaceAPI from "../../hooks/karyawan/useFaceapi.hook";
+import * as faceapi from "face-api.js";
 
 const AbsensiPage = () => {
   // --- STATE ---
@@ -84,6 +85,7 @@ const AbsensiPage = () => {
   const scanIntervalRef = useRef(null);
   const isProcessingRef = useRef(false); // Ref untuk tracking processing state (menghindari stale closure)
   const absensiTypeRef = useRef(null); // 'masuk' atau 'keluar' - untuk tracking jenis absensi yang dimulai
+  const canvasRef = useRef(null);
 
   // --- CUSTOM HOOKS ---
   const {
@@ -308,6 +310,12 @@ const AbsensiPage = () => {
     setIsProcessing(false);
     isProcessingRef.current = false; // Reset ref juga
     setStableCount(0); // Reset progress stabilisasi
+    
+    // Clear canvas
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext("2d");
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
   };
 
   const startScanningFace = () => {
@@ -338,6 +346,20 @@ const AbsensiPage = () => {
         const result = await detectFace(videoRef.current);
 
         if (result) {
+          // --- DRAW LANDMARKS ---
+          if (canvasRef.current && videoRef.current) {
+            const displaySize = {
+              width: videoRef.current.videoWidth,
+              height: videoRef.current.videoHeight,
+            };
+            faceapi.matchDimensions(canvasRef.current, displaySize);
+            const resizedDetections = faceapi.resizeResults(result.rawDetection, displaySize);
+            const ctx = canvasRef.current.getContext('2d');
+            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
+            faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
+          }
+
           if (result.hasMask) {
             localStableCount = 0;
             setStableCount(0);
@@ -381,6 +403,10 @@ const AbsensiPage = () => {
         } else {
           localStableCount = 0;
           setStableCount(0);
+          if (canvasRef.current) {
+            const ctx = canvasRef.current.getContext('2d');
+            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          }
           if (attempts >= maxAttempts) {
             // TIMEOUT
             clearInterval(scanIntervalRef.current);
@@ -463,6 +489,20 @@ const AbsensiPage = () => {
         const result = await detectFace(videoRef.current);
 
         if (result) {
+          // --- DRAW LANDMARKS ---
+          if (canvasRef.current && videoRef.current) {
+            const displaySize = {
+              width: videoRef.current.videoWidth,
+              height: videoRef.current.videoHeight,
+            };
+            faceapi.matchDimensions(canvasRef.current, displaySize);
+            const resizedDetections = faceapi.resizeResults(result.rawDetection, displaySize);
+            const ctx = canvasRef.current.getContext('2d');
+            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
+            faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
+          }
+
           if (result.hasMask) {
             localStableCount = 0;
             setStableCount(0);
@@ -506,6 +546,10 @@ const AbsensiPage = () => {
         } else {
           localStableCount = 0;
           setStableCount(0);
+          if (canvasRef.current) {
+            const ctx = canvasRef.current.getContext('2d');
+            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          }
           if (attempts >= maxAttempts) {
             // TIMEOUT
             clearInterval(scanIntervalRef.current);
@@ -706,6 +750,10 @@ const AbsensiPage = () => {
                           muted
                           className="w-full h-full object-cover transform -scale-x-100" // Mirror effect
                           onPlaying={() => setIsVideoReady(true)}
+                        />
+                        <canvas
+                          ref={canvasRef}
+                          className="absolute inset-0 w-full h-full transform -scale-x-100" // Mirror effect match
                         />
 
                         {/* Overlay Scanning Animation */}

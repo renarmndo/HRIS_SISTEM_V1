@@ -230,6 +230,7 @@ export default function useFaceAPI() {
           );
 
           return {
+            rawDetection: detection,
             descriptor: detection.descriptor,
             detection: detection.detection,
             landmarks: detection.landmarks,
