@@ -22,6 +22,7 @@ export default class AbsensiController {
         req.body;
 
       if (!face_embedding_masuk) {
+        console.log("❌ ABSEN GAGAL: face_embedding_masuk kosong/null");
         return res.status(400).json({
           msg: "Absensi Gagal, Silahkan absensi ulang",
         });
@@ -29,6 +30,7 @@ export default class AbsensiController {
 
       // SECURITY (Task 4.7): validasi koordinat GPS berada dalam range valid
       if (!isValidLatitude(latitude_masuk) || !isValidLongitude(longitude_masuk)) {
+        console.log("❌ ABSEN GAGAL: GPS tidak valid", { latitude_masuk, longitude_masuk });
         return res.status(400).json({
           msg: "Koordinat GPS tidak valid (latitude -90..90, longitude -180..180)",
         });
@@ -39,6 +41,7 @@ export default class AbsensiController {
       });
 
       if (!karyawan) {
+        console.log("❌ ABSEN GAGAL: Karyawan tidak ditemukan untuk user_id:", user_id);
         return res.status(404).json({
           msg: "Data karyawan tidak ditemukan untuk user ini",
         });
@@ -63,6 +66,7 @@ export default class AbsensiController {
       });
 
       if (existingMasuk) {
+        console.log("❌ ABSEN GAGAL: Sudah absen hari ini", { karyawan_id, tanggalDB });
         return res.status(400).json({
           msg: "Anda sudah melakukan absensi masuk hari ini",
         });
@@ -74,6 +78,7 @@ export default class AbsensiController {
       });
 
       if (!karyawanFace) {
+        console.log("❌ ABSEN GAGAL: Data wajah belum terdaftar untuk karyawan_id:", karyawan_id);
         return res.status(404).json({
           msg: "Data Wajah belum terdaftar, Silahkan lakukan registrasi wajah pada sistem",
         });
@@ -82,8 +87,14 @@ export default class AbsensiController {
       const storedEmbedding = karyawanFace.face_embedding;
 
       // Hitung jarak wajah
+      console.log("🔍 Menghitung jarak wajah...");
+      console.log("   Input type:", typeof face_embedding_masuk, "isArray:", Array.isArray(face_embedding_masuk), "length:", face_embedding_masuk?.length);
+      console.log("   Stored type:", typeof storedEmbedding, "isArray:", Array.isArray(storedEmbedding), "length:", storedEmbedding?.length || Object.keys(storedEmbedding || {}).length);
+      
       const distance = validateDistance(face_embedding_masuk, storedEmbedding);
       const threshold = 0.6; // Relaxed threshold for better usability
+
+      console.log("   Distance:", distance, "Threshold:", threshold, "Result:", distance <= threshold ? "✅ COCOK" : "❌ TIDAK COCOK");
 
       if (distance > threshold) {
         return res.status(400).json({

@@ -203,22 +203,22 @@ export default function ProfilePages() {
   };
 
   const captureSnapshot = () => {
-    if (videoRef.current && canvasRef.current) {
+    if (videoRef.current) {
       const video = videoRef.current;
-      const canvas = canvasRef.current;
 
-      // Sesuaikan ukuran canvas dengan video
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      // Gunakan canvas temporary (off-screen) agar tidak konflik dengan canvasRef
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = video.videoWidth;
+      tempCanvas.height = video.videoHeight;
 
-      const ctx = canvas.getContext("2d");
+      const ctx = tempCanvas.getContext("2d");
 
       // Flip horizontal (mirror effect) agar sesuai preview
-      ctx.translate(canvas.width, 0);
+      ctx.translate(tempCanvas.width, 0);
       ctx.scale(-1, 1);
 
       ctx.drawImage(video, 0, 0);
-      setCapturedImage(canvas.toDataURL("image/jpeg"));
+      setCapturedImage(tempCanvas.toDataURL("image/jpeg"));
     }
   };
 
@@ -358,9 +358,10 @@ export default function ProfilePages() {
     try {
       setIsSaving(true);
 
-      // CUKUP PANGGIL HOOK LANGSUNG
-      // Hook yang akan mengurus konversi Array.from() dan payload { face_embedding: ... }
-      // Toast sudah dihandle di dalam hook, tidak perlu toast di sini
+      // Backend registerFace sekarang mendukung upsert:
+      // - Jika belum ada data wajah → create baru
+      // - Jika sudah ada → update embedding
+      // Jadi cukup panggil saveFaceProfile untuk kedua kasus
       await saveFaceProfile(faceDescriptor);
     } catch (e) {
       console.error(e);

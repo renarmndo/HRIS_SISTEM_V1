@@ -127,7 +127,7 @@ function detectOcclusions(landmarks, videoElement) {
     // KETENTUAN KACAMATA:
     // - Secara absolut: jembatan hidung sangat kontras (> 14.5)
     // - Secara relatif: jembatan hidung memiliki variasi jauh lebih tinggi dari kulit control (ratio > 2.0)
-    const hasGlasses = bridgeStdDev > 14.5 || (bridgeStdDev > 11.0 && bridgeRatio > 2.0);
+    const hasGlasses = bridgeStdDev > 18.0 || (bridgeStdDev > 14.0 && bridgeRatio > 2.5);
 
     return {
       hasMask,
@@ -180,7 +180,7 @@ export default function useFaceAPI() {
     } catch (err) {
       console.error("❌ Error loading FaceAPI models:", err);
       setError(`Gagal memuat model: ${err.message}`);
-      setModelLoaded(true);
+      setModelLoaded(false);
     } finally {
       setIsLoading(false);
     }
@@ -190,6 +190,12 @@ export default function useFaceAPI() {
     async (videoElement) => {
       if (!modelLoaded || !videoElement) {
         console.warn("Model not loaded or video element missing");
+        return null;
+      }
+
+      // Guard: pastikan video sudah siap render frame
+      if (videoElement.readyState < 2 || videoElement.videoWidth === 0) {
+        console.warn("Video not ready yet (readyState:", videoElement.readyState, ")");
         return null;
       }
 

@@ -50,12 +50,20 @@ export default class FaceKaryawanController {
       });
 
       if (existingFace) {
-        return res.status(400).json({
-          msg: "Data wajah sudah terdaftar",
+        // UPSERT: Jika wajah sudah terdaftar, update embedding-nya
+        const currentTrainingCount = existingFace.training_count || 0;
+        await existingFace.update({
+          face_embedding: face_embedding,
+          training_count: currentTrainingCount + 1,
+        });
+
+        return res.status(200).json({
+          msg: "Berhasil memperbarui data wajah",
+          data: existingFace,
         });
       }
 
-      //   create face
+      //   create face (pertama kali)
       const faceKaryawan = await KaryawanFaceModel.create({
         karyawan_id,
         face_embedding: face_embedding,

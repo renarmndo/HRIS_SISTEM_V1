@@ -259,6 +259,7 @@ const AbsensiPage = () => {
 
     try {
       setIsVideoReady(false);
+      absensiTypeRef.current = "masuk"; // Tandai jenis absensi
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 640 } },
         audio: false,
@@ -268,7 +269,7 @@ const AbsensiPage = () => {
 
       // Task 5.9: refresh GPS saat camera start
       refreshLocation();
-      startScanningFace();
+      // Scanning akan dimulai di onPlaying callback (bukan di sini)
     } catch (err) {
       toast.error("Gagal akses kamera: " + err.message);
     }
@@ -282,6 +283,7 @@ const AbsensiPage = () => {
 
     try {
       setIsVideoReady(false);
+      absensiTypeRef.current = "keluar"; // Tandai jenis absensi
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 640 } },
         audio: false,
@@ -291,7 +293,7 @@ const AbsensiPage = () => {
 
       // Task 5.9: refresh GPS saat camera start
       refreshLocation();
-      startScanningFaceKeluar();
+      // Scanning akan dimulai di onPlaying callback (bukan di sini)
     } catch (err) {
       toast.error("Gagal akses kamera: " + err.message);
     }
@@ -749,7 +751,15 @@ const AbsensiPage = () => {
                           playsInline
                           muted
                           className="w-full h-full object-cover transform -scale-x-100" // Mirror effect
-                          onPlaying={() => setIsVideoReady(true)}
+                          onPlaying={() => {
+                            setIsVideoReady(true);
+                            // Mulai scanning SETELAH video benar-benar playing
+                            if (absensiTypeRef.current === "masuk") {
+                              startScanningFace();
+                            } else if (absensiTypeRef.current === "keluar") {
+                              startScanningFaceKeluar();
+                            }
+                          }}
                         />
                         <canvas
                           ref={canvasRef}
