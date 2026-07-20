@@ -45,7 +45,7 @@ if (process.env.NODE_ENV !== "test") {
 }
 
 // SECURITY (Task 1.6): whitelist CORS origins (comma-separated via env, fallback dev)
-const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:3000")
+const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:5174,http://localhost:3000")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
