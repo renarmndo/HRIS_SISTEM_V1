@@ -347,6 +347,9 @@ const AbsensiPage = () => {
         // Deteksi wajah
         const result = await detectFace(videoRef.current);
 
+        // Tambahan check untuk menghindari multiple processing overlapping dari setInterval async
+        if (isProcessingRef.current) return;
+
         if (result) {
           // --- DRAW LANDMARKS ---
           if (canvasRef.current && videoRef.current) {
@@ -448,7 +451,7 @@ const AbsensiPage = () => {
 
       const serverMessage = error.response?.data?.msg || "";
       if (serverMessage.toLowerCase().includes("wajah") || serverMessage.toLowerCase().includes("cocok")) {
-        toast.error("Verifikasi Wajah Gagal. Mencoba kembali dalam 3 detik...", { id: "absen-masuk" });
+        // Hapus toast di sini karena useAbsensiHook sudah menampilkannya
         setTimeout(() => {
           if (streamRef.current) {
             startScanningFace();
@@ -489,6 +492,9 @@ const AbsensiPage = () => {
       try {
         // Deteksi wajah
         const result = await detectFace(videoRef.current);
+
+        // Tambahan check untuk menghindari multiple processing overlapping dari setInterval async
+        if (isProcessingRef.current) return;
 
         if (result) {
           // --- DRAW LANDMARKS ---
@@ -597,7 +603,7 @@ const AbsensiPage = () => {
 
       const serverMessage = error.response?.data?.msg || "";
       if (serverMessage.toLowerCase().includes("wajah") || serverMessage.toLowerCase().includes("cocok")) {
-        toast.error("Verifikasi Wajah Gagal. Mencoba kembali dalam 3 detik...", { id: "absen-keluar" });
+        // Hapus toast di sini karena useAbsensiHook sudah menampilkannya
         setTimeout(() => {
           if (streamRef.current) {
             startScanningFaceKeluar();
