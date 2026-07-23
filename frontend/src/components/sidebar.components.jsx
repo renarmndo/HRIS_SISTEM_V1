@@ -78,6 +78,12 @@ export default function SidebarComponents({ isOpen, onToggle }) {
         icon: Calendar,
         path: "/hrd/leaves",
       },
+      {
+        id: 7,
+        label: "Kelola Lembur",
+        icon: Clock,
+        path: "/hrd/lembur",
+      },
     ],
     karyawan: [
       {
@@ -115,6 +121,12 @@ export default function SidebarComponents({ isOpen, onToggle }) {
         label: "Data Presensi",
         icon: FileTextIcon,
         path: "/karyawan/data-absen",
+      },
+      {
+        id: 7,
+        label: "Pengajuan Lembur",
+        icon: Clock,
+        path: "/karyawan/lembur",
       },
     ],
   };

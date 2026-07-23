@@ -135,7 +135,6 @@ export default function LemburPage() {
     } catch (error) {
       toast.error(error.response?.data?.msg || "Gagal menghapus lembur");
     }
-    }
   };
 
   const getStatusBadge = (status) => {
@@ -351,6 +350,7 @@ export default function LemburPage() {
                   </tr>
                 ))
               )}
+            </tbody>
           </table>
         </div>
       </div>

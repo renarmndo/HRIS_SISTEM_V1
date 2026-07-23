@@ -18,6 +18,7 @@ import AbsensiPage from "./pages/karyawan/absensiPage";
 import DashboardCutiPage from "./pages/karyawan/cutiPage";
 import DashboardGajiPage from "./pages/karyawan/gajiPage";
 import MasterDataAbsen from "./pages/karyawan/masterDataAbsenPage";
+import LemburPage from "./pages/karyawan/lemburPage";
 
 // HRD
 import MasterKaryawan from "./pages/hrd/kelolaKaryawan";
@@ -27,6 +28,7 @@ import KelolaAbsensiKaryawan from "./pages/hrd/kelolaAbsensi";
 import KelolaCutiPage from "./pages/hrd/kelolaCuti";
 import KelolaKomponenGaji from "./pages/hrd/kelolaKomponenGaji";
 import KelolaSlipGaji from "./pages/hrd/kelolaSlipGaji";
+import KelolaLembur from "./pages/hrd/kelolaLembur";
 
 function App() {
   const navigate = useNavigate();
@@ -123,6 +125,17 @@ function App() {
           }
         />
 
+        <Route
+          path="/hrd/lembur"
+          element={
+            <MainLayout>
+              <ProtectedRoutes>
+                <KelolaLembur />
+              </ProtectedRoutes>
+            </MainLayout>
+          }
+        />
+
         {/* Penggajian HRD */}
         <Route
           path="/hrd/komponen-gaji"
@@ -207,6 +220,17 @@ function App() {
             <MainLayout>
               <ProtectedRoutes>
                 <MasterDataAbsen />
+              </ProtectedRoutes>
+            </MainLayout>
+          }
+        />
+
+        <Route
+          path="/karyawan/lembur"
+          element={
+            <MainLayout>
+              <ProtectedRoutes>
+                <LemburPage />
               </ProtectedRoutes>
             </MainLayout>
           }
