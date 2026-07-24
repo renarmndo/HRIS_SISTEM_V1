@@ -116,6 +116,19 @@ export default class PengajuanCutiController {
         });
       }
 
+      // Validasi tanggal mulai tidak boleh di masa lalu (sebelum hari ini)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startObj = new Date(tanggal_mulai);
+      startObj.setHours(0, 0, 0, 0);
+
+      if (startObj < today) {
+        await transaction.rollback();
+        return res.status(400).json({
+          msg: "Tidak dapat mengajukan cuti untuk tanggal yang sudah berlalu",
+        });
+      }
+
       // Hitung jumlah hari kerja (exclude weekend, Task 3.14)
       const jumlahHari = PengajuanCutiController.hitungJumlahHari(
         tanggal_mulai,

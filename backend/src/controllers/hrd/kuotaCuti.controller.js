@@ -1,4 +1,5 @@
 import KuotaCutiModel from "../../models/kuotaCutiModel.js";
+import SlipGajiModel from "../../models/slipGaji.model.js";
 import { isValidInt, isValidUUID } from "../../utils/validators.js";
 
 export default class KuotaCutiController {
@@ -86,9 +87,10 @@ export default class KuotaCutiController {
         });
       }
 
-      if (!isValidInt(tahun, { min: 1970, max: 2100 })) {
+      const currentYear = new Date().getFullYear();
+      if (!isValidInt(tahun, { min: currentYear - 1, max: currentYear + 5 })) {
         return res.status(400).json({
-          msg: "Tahun harus berupa angka bulat antara 1970-2100",
+          msg: `Tahun tidak valid (hanya diperbolehkan antara ${currentYear - 1} hingga ${currentYear + 5})`,
         });
       }
 
@@ -108,6 +110,21 @@ export default class KuotaCutiController {
       if (bulan < 1 || bulan > 12) {
         return res.status(400).json({
           msg: "Bulan harus antara 1-12",
+        });
+      }
+
+      // Cek apakah slip gaji pada periode bulan & tahun tersebut sudah ada yang berstatus final
+      const slipFinal = await SlipGajiModel.findOne({
+        where: {
+          bulan: parseInt(bulan),
+          tahun: parseInt(tahun),
+          status: "final",
+        },
+      });
+
+      if (slipFinal) {
+        return res.status(400).json({
+          msg: `Tidak dapat menambahkan kuota cuti karena slip gaji periode bulan ${bulan} tahun ${tahun} sudah berstatus final`,
         });
       }
 
@@ -204,12 +221,29 @@ export default class KuotaCutiController {
         });
       }
 
+      const targetBulan = bulan ? parseInt(bulan) : data.bulan;
+      const targetTahun = tahun ? parseInt(tahun) : data.tahun;
+
+      const slipFinal = await SlipGajiModel.findOne({
+        where: {
+          bulan: targetBulan,
+          tahun: targetTahun,
+          status: "final",
+        },
+      });
+
+      if (slipFinal) {
+        return res.status(400).json({
+          msg: `Tidak dapat memperbarui kuota cuti karena slip gaji periode bulan ${targetBulan} tahun ${targetTahun} sudah berstatus final`,
+        });
+      }
+
       // Jika bulan/tahun diubah, cek duplikasi
       if ((bulan && bulan !== data.bulan) || (tahun && tahun !== data.tahun)) {
         const existing = await KuotaCutiModel.findOne({
           where: {
-            bulan: parseInt(bulan || data.bulan),
-            tahun: parseInt(tahun || data.tahun),
+            bulan: targetBulan,
+            tahun: targetTahun,
           },
         });
 

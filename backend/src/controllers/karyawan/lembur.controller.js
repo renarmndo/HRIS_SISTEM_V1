@@ -1,5 +1,6 @@
 import LemburModel from "../../models/lembur.model.js";
 import KaryawanModel from "../../models/karyawan.model.js";
+import SlipGajiModel from "../../models/slipGaji.model.js";
 import { Op } from "sequelize";
 import moment from "moment";
 
@@ -17,6 +18,14 @@ export default class LemburController {
         });
       }
 
+      // Validasi tanggal tidak boleh di masa lalu (sebelum hari ini YYYY-MM-DD)
+      const today = moment().format("YYYY-MM-DD");
+      if (moment(tanggal).isBefore(today)) {
+        return res.status(400).json({
+          msg: "Tidak dapat mengajukan lembur untuk tanggal yang sudah berlalu",
+        });
+      }
+
       // Get karyawan data
       const karyawan = await KaryawanModel.findOne({
         where: { user_id: userId },
@@ -25,6 +34,26 @@ export default class LemburController {
       if (!karyawan) {
         return res.status(404).json({
           msg: "Data karyawan tidak ditemukan",
+        });
+      }
+
+      // Cek apakah slip gaji pada bulan & tahun tersebut sudah berstatus final
+      const tglMoment = moment(tanggal);
+      const bulanLembur = tglMoment.month() + 1;
+      const tahunLembur = tglMoment.year();
+
+      const slipFinal = await SlipGajiModel.findOne({
+        where: {
+          karyawan_id: karyawan.id,
+          bulan: bulanLembur,
+          tahun: tahunLembur,
+          status: "final",
+        },
+      });
+
+      if (slipFinal) {
+        return res.status(400).json({
+          msg: `Tidak dapat mengajukan lembur karena slip gaji bulan ${bulanLembur}/${tahunLembur} sudah berstatus final`,
         });
       }
 
