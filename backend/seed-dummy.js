@@ -344,44 +344,135 @@ async function seedDummy() {
     }
     console.log(`Berhasil membuat ${faceList.length} data wajah karyawan.`);
 
-    // 8. Seeding AbsensiKaryawanModel (50 Absensi: 5 hari kerja * 10 Karyawan)
-    console.log("Seeding Absensi Karyawan...");
+    // 8. Seeding AbsensiKaryawanModel (1 Bulan Penuh Juli 2026 - 23 Hari Kerja)
+    console.log("Seeding Absensi Karyawan 1 Bulan Penuh...");
     const absensiList = [];
-    const workingDays = [
-      "2026-07-13",
-      "2026-07-14",
-      "2026-07-15",
-      "2026-07-16",
-      "2026-07-17",
-    ]; // Senin-Jumat
+    const lemburList = [];
 
-    for (let k = 0; k < 3; k++) {
+    // Daftar Hari Kerja Bulan Juli 2026 (Senin - Jumat)
+    const workingDays = [];
+    for (let day = 1; day <= 31; day++) {
+      const dateStr = `2026-07-${String(day).padStart(2, "0")}`;
+      const dateObj = new Date(dateStr);
+      const dayOfWeek = dateObj.getDay(); // 0 = Minggu, 6 = Sabtu
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        workingDays.push(dateStr);
+      }
+    }
+
+    for (let k = 0; k < karyawanList.length; k++) {
       const karyawan = karyawanList[k];
+
       for (let d = 0; d < workingDays.length; d++) {
         const tanggal = workingDays[d];
-        // Custom distribution: kebanyakan "masuk", beberapa "terlambat" atau "izin/sakit"
+
         let status = "masuk";
-        let jam_masuk = "07:55:00";
-        let jam_keluar = "17:05:00";
+        let jam_masuk = "07:52:00";
+        let jam_keluar = "17:08:00";
         let menit_terlambat = 0;
         let keterangan = "Hadir tepat waktu";
 
-        const roll = Math.random();
-        if (roll < 0.15) {
-          status = "terlambat";
-          jam_masuk = "08:18:00";
-          menit_terlambat = 18;
-          keterangan = "Terlambat karena macet lalu lintas";
-        } else if (roll >= 0.15 && roll < 0.2) {
-          status = "sakit";
-          jam_masuk = null;
-          jam_keluar = null;
-          keterangan = "Sakit surat dokter terlampir";
-        } else if (roll >= 0.2 && roll < 0.23) {
-          status = "izin";
-          jam_masuk = null;
-          jam_keluar = null;
-          keterangan = "Izin keperluan keluarga mendesak";
+        // Skenario Spesifik Karyawan 1 (Target Utama)
+        if (k === 0) {
+          if (tanggal === "2026-07-06") {
+            status = "terlambat";
+            jam_masuk = "08:25:00";
+            jam_keluar = "17:15:00";
+            menit_terlambat = 25;
+            keterangan = "Terlambat karena macet parah di jalan tol";
+          } else if (tanggal === "2026-07-13") {
+            status = "izin";
+            jam_masuk = null;
+            jam_keluar = null;
+            menit_terlambat = 0;
+            keterangan = "Izin pengurusan dokumen keluarga penting";
+          } else if (tanggal === "2026-07-20") {
+            status = "sakit";
+            jam_masuk = null;
+            jam_keluar = null;
+            menit_terlambat = 0;
+            keterangan = "Sakit demam tinggi (Surat dokter terlampir)";
+          } else if (tanggal === "2026-07-21") {
+            status = "sakit";
+            jam_masuk = null;
+            jam_keluar = null;
+            menit_terlambat = 0;
+            keterangan = "Istirahat sakit hari ke-2";
+          } else if (tanggal === "2026-07-28") {
+            status = "terlambat";
+            jam_masuk = "08:14:00";
+            jam_keluar = "17:20:00";
+            menit_terlambat = 14;
+            keterangan = "Terlambat karena kendala ban motor bocor";
+          } else {
+            // Hari biasa variasi jam masuk
+            const randomMin = Math.floor(Math.random() * 10);
+            jam_masuk = `07:4${5 + (randomMin % 5)}:00`;
+            jam_keluar = `17:0${randomMin}:00`;
+          }
+
+          // Lembur Karyawan 1 (Di tanggal 08, 15, dan 29)
+          if (tanggal === "2026-07-08") {
+            lemburList.push(
+              await LemburModel.create({
+                karyawan_id: karyawan.id,
+                tanggal: tanggal,
+                jam_mulai: "18:00:00",
+                jam_selesai: "20:30:00",
+                total_jam: 2.5,
+                keterangan: "Lembur penyelesaian modul absensi v2",
+                status: "approved",
+                approved_by: hrdUsers[0].id,
+                approved_at: new Date(`${tanggal}T17:30:00Z`),
+              })
+            );
+          } else if (tanggal === "2026-07-15") {
+            lemburList.push(
+              await LemburModel.create({
+                karyawan_id: karyawan.id,
+                tanggal: tanggal,
+                jam_mulai: "18:00:00",
+                jam_selesai: "21:00:00",
+                total_jam: 3.0,
+                keterangan: "Lembur perbaikan bug database & sinkronisasi",
+                status: "approved",
+                approved_by: hrdUsers[0].id,
+                approved_at: new Date(`${tanggal}T17:35:00Z`),
+              })
+            );
+          } else if (tanggal === "2026-07-29") {
+            lemburList.push(
+              await LemburModel.create({
+                karyawan_id: karyawan.id,
+                tanggal: tanggal,
+                jam_mulai: "18:00:00",
+                jam_selesai: "20:00:00",
+                total_jam: 2.0,
+                keterangan: "Lembur persiapan laporan audit HRD",
+                status: "approved",
+                approved_by: hrdUsers[0].id,
+                approved_at: new Date(`${tanggal}T17:25:00Z`),
+              })
+            );
+          }
+        } else {
+          // Karyawan Lain (Variasi normal)
+          if (d === 3) {
+            status = "terlambat";
+            jam_masuk = "08:18:00";
+            menit_terlambat = 18;
+            keterangan = "Terlambat hujan deras";
+          } else if (d === 11 && k === 1) {
+            status = "izin";
+            jam_masuk = null;
+            jam_keluar = null;
+            keterangan = "Izin pemadaman listrik rumah";
+          } else if (d === 18 && k === 2) {
+            status = "sakit";
+            jam_masuk = null;
+            jam_keluar = null;
+            keterangan = "Sakit flu ringan";
+          }
         }
 
         const abs = await AbsensiKaryawanModel.create({
@@ -391,21 +482,13 @@ async function seedDummy() {
           jam_keluar: jam_keluar,
           status: status,
           keterangan: keterangan,
-          latitude_masuk: -6.2088 + (Math.random() * 0.0005 - 0.00025),
-          longitude_masuk: 106.8456 + (Math.random() * 0.0005 - 0.00025),
-          latitude_keluar: jam_keluar
-            ? -6.2088 + (Math.random() * 0.0005 - 0.00025)
-            : null,
-          longitude_keluar: jam_keluar
-            ? 106.8456 + (Math.random() * 0.0005 - 0.00025)
-            : null,
-          distance_masuk: jam_masuk
-            ? parseFloat((Math.random() * 50).toFixed(2))
-            : null,
-          distance_keluar: jam_keluar
-            ? parseFloat((Math.random() * 50).toFixed(2))
-            : null,
-          menit_terlambat: menit_terlambat || null,
+          latitude_masuk: jam_masuk ? -6.2088 + (Math.random() * 0.0004 - 0.0002) : null,
+          longitude_masuk: jam_masuk ? 106.8456 + (Math.random() * 0.0004 - 0.0002) : null,
+          latitude_keluar: jam_keluar ? -6.2088 + (Math.random() * 0.0004 - 0.0002) : null,
+          longitude_keluar: jam_keluar ? 106.8456 + (Math.random() * 0.0004 - 0.0002) : null,
+          distance_masuk: jam_masuk ? parseFloat((Math.random() * 30 + 5).toFixed(2)) : null,
+          distance_keluar: jam_keluar ? parseFloat((Math.random() * 30 + 5).toFixed(2)) : null,
+          menit_terlambat: menit_terlambat || 0,
           validasi_lokasi_masuk: jam_masuk ? true : false,
           validasi_lokasi_keluar: jam_keluar ? true : false,
           is_manual: false,
@@ -414,30 +497,9 @@ async function seedDummy() {
       }
     }
     console.log(
-      `Berhasil membuat ${absensiList.length} data absensi karyawan.`,
+      `Berhasil membuat ${absensiList.length} data absensi karyawan (23 hari kerja x ${karyawanList.length} karyawan).`
     );
-
-    // 9. Seeding LemburModel (10 Data Lembur)
-    console.log("Seeding Lembur...");
-    const lemburList = [];
-    for (let i = 0; i < 3; i++) {
-      const karyawan = karyawanList[i];
-      const approvedBy = hrdUsers[i % hrdUsers.length].id;
-      const lembur = await LemburModel.create({
-        karyawan_id: karyawan.id,
-        tanggal: "2026-07-15",
-        jam_mulai: "18:00:00",
-        jam_selesai: "20:30:00",
-        total_jam: 2.5,
-        keterangan: "Penyelesaian deployment sistem release v2.0",
-        status: i % 3 === 0 ? "pending" : i % 3 === 1 ? "approved" : "rejected",
-        approved_by: i % 3 === 1 ? approvedBy : null,
-        approved_at: i % 3 === 1 ? new Date() : null,
-        rejection_reason: i % 3 === 2 ? "Keterangan kurang spesifik" : null,
-      });
-      lemburList.push(lembur);
-    }
-    console.log(`Berhasil membuat ${lemburList.length} data lembur.`);
+    console.log(`Berhasil membuat ${lemburList.length} data lembur karyawan.`);
 
     // 10. Seeding PengajuanCutiModel (10 Data Pengajuan Cuti)
     console.log("Seeding Pengajuan Cuti...");

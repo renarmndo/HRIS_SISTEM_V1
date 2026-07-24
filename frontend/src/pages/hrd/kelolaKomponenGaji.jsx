@@ -47,6 +47,7 @@ const metodeOptions = [
   { value: "persentase", label: "Persentase Gaji Pokok" },
   { value: "per_hari", label: "Per Hari (Hadir/Absen)" },
   { value: "per_jam", label: "Per Jam (Lembur)" },
+  { value: "per_keterlambatan", label: "Per Keterlambatan (Hari)" },
 ];
 
 export default function KelolaKomponenGaji() {
@@ -170,6 +171,8 @@ export default function KelolaKomponenGaji() {
         return `Rp ${nilai.toLocaleString("id-ID")}/hari`;
       case "per_jam":
         return `Rp ${nilai.toLocaleString("id-ID")}/jam`;
+      case "per_keterlambatan":
+        return `Rp ${nilai.toLocaleString("id-ID")}/keterlambatan`;
       default:
         return `Rp ${nilai.toLocaleString("id-ID")}`;
     }

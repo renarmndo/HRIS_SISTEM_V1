@@ -21,7 +21,7 @@ KomponenGajiModel.init(
       allowNull: false,
     },
     metode: {
-      type: DataTypes.ENUM("nominal", "persentase", "per_hari", "per_jam"),
+      type: DataTypes.ENUM("nominal", "persentase", "per_hari", "per_jam", "per_keterlambatan"),
       allowNull: false,
       defaultValue: "nominal",
     },

@@ -80,9 +80,9 @@ export default class KomponenGajiController {
       }
 
       if (metode !== undefined && metode !== null && metode !== "") {
-        if (!["nominal", "persentase", "per_hari", "per_jam"].includes(metode)) {
+        if (!["nominal", "persentase", "per_hari", "per_jam", "per_keterlambatan"].includes(metode)) {
           return res.status(400).json({
-            msg: "Metode harus 'nominal', 'persentase', 'per_hari', atau 'per_jam'",
+            msg: "Metode harus 'nominal', 'persentase', 'per_hari', 'per_jam', atau 'per_keterlambatan'",
           });
         }
       }
@@ -146,9 +146,9 @@ export default class KomponenGajiController {
       }
 
       if (metode !== undefined) {
-        if (!["nominal", "persentase", "per_hari", "per_jam"].includes(metode)) {
+        if (!["nominal", "persentase", "per_hari", "per_jam", "per_keterlambatan"].includes(metode)) {
           return res.status(400).json({
-            msg: "Metode harus 'nominal', 'persentase', 'per_hari', atau 'per_jam'",
+            msg: "Metode harus 'nominal', 'persentase', 'per_hari', 'per_jam', atau 'per_keterlambatan'",
           });
         }
       }

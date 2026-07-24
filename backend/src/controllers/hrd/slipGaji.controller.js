@@ -185,6 +185,13 @@ export default class SlipGajiController {
                 nilai = 0;
               }
               break;
+            case "per_keterlambatan":
+              if (komponen.tipe === "potongan" && stats.terlambat > 0) {
+                nilai = nilaiDefault * stats.terlambat;
+              } else {
+                nilai = 0;
+              }
+              break;
           }
 
           if (nilai > 0) {
@@ -202,6 +209,8 @@ export default class SlipGajiController {
               keterangan:
                 komponen.metode === "per_jam"
                   ? `${totalLemburJam} jam x ${nilaiDefault}`
+                  : komponen.metode === "per_keterlambatan"
+                  ? `${stats.terlambat} hari telat x ${nilaiDefault}`
                   : `${komponen.metode}: ${nilaiDefault}`,
             });
           }
