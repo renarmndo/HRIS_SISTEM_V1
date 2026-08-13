@@ -540,11 +540,22 @@ export default function KelolaAbsensiKaryawan() {
                     </td>
                     <td className="px-4 py-3">
                       {item.absensi ? (
-                        <div className="flex items-center gap-2">
-                          <StatusBadge status={item.absensi.status} />
-                          {item.absensi.is_manual && (
-                            <span className="text-xs text-gray-400">
-                              (Manual)
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <StatusBadge status={item.absensi.status} />
+                            {item.absensi.is_manual && (
+                              <span className="text-xs text-gray-400">
+                                (Manual)
+                              </span>
+                            )}
+                          </div>
+                          {(item.absensi.is_suspect_masuk || item.absensi.is_suspect_keluar) && (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 cursor-help"
+                              title={`[Alasan Suspect]: ${item.absensi.suspect_reason_masuk || item.absensi.suspect_reason_keluar || "Indikasi lokasi/akurasi abnormal"}`}
+                            >
+                              <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                              Indikasi Fake GPS
                             </span>
                           )}
                         </div>

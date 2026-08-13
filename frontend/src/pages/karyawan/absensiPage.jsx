@@ -196,6 +196,7 @@ const AbsensiPage = () => {
           setCurrentLocation({
             lat: position.coords.latitude,
             long: position.coords.longitude,
+            accuracy: position.coords.accuracy,
           });
           setLocationError(null);
         },
@@ -240,6 +241,7 @@ const AbsensiPage = () => {
         setCurrentLocation({
           lat: position.coords.latitude,
           long: position.coords.longitude,
+          accuracy: position.coords.accuracy,
         });
         setLocationError(null);
       },
@@ -431,6 +433,7 @@ const AbsensiPage = () => {
       face_embedding_masuk: Array.from(faceDescriptor), // Konversi Float32Array ke Array biasa
       latitude_masuk: currentLocation.lat,
       longitude_masuk: currentLocation.long,
+      accuracy_masuk: currentLocation.accuracy,
     };
 
     try {
@@ -584,6 +587,7 @@ const AbsensiPage = () => {
       face_embedding_keluar: Array.from(faceDescriptor),
       latitude_keluar: currentLocation.lat,
       longitude_keluar: currentLocation.long,
+      accuracy_keluar: currentLocation.accuracy,
     };
 
     try {

@@ -60,6 +60,16 @@ export default class HrdAbsensiController {
                 menit_terlambat: absensi.menit_terlambat,
                 is_manual: absensi.is_manual,
                 diabsen_oleh: absensi.diabsen_oleh,
+                validasi_lokasi_masuk: absensi.validasi_lokasi_masuk,
+                validasi_lokasi_keluar: absensi.validasi_lokasi_keluar,
+                accuracy_masuk: absensi.accuracy_masuk,
+                accuracy_keluar: absensi.accuracy_keluar,
+                ip_address_masuk: absensi.ip_address_masuk,
+                ip_address_keluar: absensi.ip_address_keluar,
+                is_suspect_masuk: absensi.is_suspect_masuk,
+                is_suspect_keluar: absensi.is_suspect_keluar,
+                suspect_reason_masuk: absensi.suspect_reason_masuk,
+                suspect_reason_keluar: absensi.suspect_reason_keluar,
               }
             : null,
         };

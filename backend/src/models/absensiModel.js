@@ -96,6 +96,47 @@ AbsensiKaryawanModel.init(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    // Anti-Fake GPS & Audit Tracking Fields
+    accuracy_masuk: {
+      type: DataTypes.DECIMAL(8, 2),
+      allowNull: true,
+      comment: "Akurasi GPS saat absen masuk (meter)",
+    },
+    accuracy_keluar: {
+      type: DataTypes.DECIMAL(8, 2),
+      allowNull: true,
+      comment: "Akurasi GPS saat absen keluar (meter)",
+    },
+    ip_address_masuk: {
+      type: DataTypes.STRING(45),
+      allowNull: true,
+      comment: "IP Address klien saat absen masuk",
+    },
+    ip_address_keluar: {
+      type: DataTypes.STRING(45),
+      allowNull: true,
+      comment: "IP Address klien saat absen keluar",
+    },
+    is_suspect_masuk: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      comment: "Indikasi kecurangan Fake GPS saat masuk",
+    },
+    is_suspect_keluar: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      comment: "Indikasi kecurangan Fake GPS saat keluar",
+    },
+    suspect_reason_masuk: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Alasan indikasi kecurangan masuk",
+    },
+    suspect_reason_keluar: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Alasan indikasi kecurangan keluar",
+    },
     // Field untuk absensi manual oleh HRD
     diabsen_oleh: {
       type: DataTypes.UUID,

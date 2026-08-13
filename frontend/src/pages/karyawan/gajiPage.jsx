@@ -12,12 +12,14 @@ import {
   Coffee,
   Eye,
   X,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   getSlipGajiSaya,
   getSlipGajiDetail,
 } from "../../services/karyawan/gaji.service";
+import { exportSlipGajiIndividuPdf } from "../../utils/exportSalaryPdf";
 
 // Nama bulan Indonesia
 const namaBulan = [
@@ -445,6 +447,27 @@ export default function DashboardGajiPage() {
                 </span>
               </div>
             </div>
+
+            {/* Download PDF Button */}
+            <button
+              onClick={() => {
+                try {
+                  exportSlipGajiIndividuPdf({
+                    selectedSlip,
+                    bulanNama: namaBulan[(selectedSlip.bulan || 1) - 1],
+                    tahun: selectedSlip.tahun || tahun,
+                    namaKantor: "PT. SISTEM HRIS SASYA",
+                  });
+                  toast.success("Berhasil mengunduh slip gaji PDF");
+                } catch (err) {
+                  toast.error("Gagal mengunduh PDF");
+                }
+              }}
+              className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
+            >
+              <Printer className="w-4 h-4" />
+              Download / Cetak Slip Gaji (PDF)
+            </button>
           </div>
         )}
       </Modal>

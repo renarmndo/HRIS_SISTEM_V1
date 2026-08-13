@@ -15,6 +15,8 @@ import {
   DollarSign,
   AlertTriangle,
   CheckCheck,
+  Download,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -24,6 +26,11 @@ import {
   finalizeSlipGaji,
   bulkFinalizeSlipGaji,
 } from "../../services/hrd/gajiService";
+import { getLokasi } from "../../services/hrd/addLokasiKantor";
+import {
+  exportRekapGajiPdf,
+  exportSlipGajiIndividuPdf,
+} from "../../utils/exportSalaryPdf";
 
 // Nama bulan Indonesia
 const namaBulan = [
@@ -171,6 +178,7 @@ export default function KelolaSlipGaji() {
   const [bulan, setBulan] = useState(new Date().getMonth() + 1);
   const [tahun, setTahun] = useState(new Date().getFullYear());
   const [filterStatus, setFilterStatus] = useState("");
+  const [namaKantor, setNamaKantor] = useState("PT. SISTEM HRIS SASYA");
 
   // Confirmation modal states
   const [confirmModal, setConfirmModal] = useState({
@@ -202,6 +210,63 @@ export default function KelolaSlipGaji() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Fetch nama perusahaan kantor
+  useEffect(() => {
+    const fetchLokasiKantor = async () => {
+      try {
+        const res = await getLokasi();
+        if (res && res.data && res.data.nama_perusahaan) {
+          setNamaKantor(res.data.nama_perusahaan);
+        }
+      } catch (err) {
+        console.log("Informasi kantor fallback digunakan");
+      }
+    };
+    fetchLokasiKantor();
+  }, []);
+
+  // Handler Export Rekap Gaji PDF
+  const handleExportPdf = () => {
+    if (slipList.length === 0) {
+      toast.error("Tidak ada data slip gaji untuk diexport");
+      return;
+    }
+    try {
+      const totalGajiBersih = slipList.reduce(
+        (acc, s) => acc + (parseFloat(s.gaji_bersih) || 0),
+        0
+      );
+      exportRekapGajiPdf({
+        slipList,
+        bulanNama: namaBulan[bulan - 1],
+        tahun,
+        totalGaji: totalGajiBersih,
+        namaKantor,
+      });
+      toast.success("Berhasil mengeksport rekap gaji ke PDF");
+    } catch (err) {
+      console.error("Export PDF error:", err);
+      toast.error("Gagal mengeksport PDF: " + err.message);
+    }
+  };
+
+  // Handler Export Slip Gaji Individu PDF
+  const handleExportIndividuPdf = () => {
+    if (!selectedSlip) return;
+    try {
+      exportSlipGajiIndividuPdf({
+        selectedSlip,
+        bulanNama: namaBulan[bulan - 1],
+        tahun,
+        namaKantor,
+      });
+      toast.success("Berhasil mengunduh slip gaji PDF");
+    } catch (err) {
+      console.error("Export PDF error:", err);
+      toast.error("Gagal mengunduh slip gaji PDF");
+    }
+  };
 
   const handleGenerate = () => {
     setConfirmModal({
@@ -411,7 +476,16 @@ export default function KelolaSlipGaji() {
               <option value="final">Final</option>
             </select>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleExportPdf}
+              disabled={slipList.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50"
+              title="Export Rekap Gaji ke PDF"
+            >
+              <Download className="w-4 h-4" />
+              Export PDF
+            </button>
             <button
               onClick={handleGenerate}
               disabled={generating}
@@ -709,20 +783,29 @@ export default function KelolaSlipGaji() {
             </div>
 
             {/* Actions */}
-            {selectedSlip.status === "draft" && (
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <button
-                onClick={() =>
-                  handleFinalize(
-                    selectedSlip.id,
-                    selectedSlip.karyawan?.nama_lengkap,
-                  )
-                }
-                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 flex items-center justify-center gap-2"
+                onClick={handleExportIndividuPdf}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
               >
-                <CheckCircle className="w-4 h-4" />
-                Finalize Slip Gaji
+                <Printer className="w-4 h-4" />
+                Cetak Slip Gaji (PDF)
               </button>
-            )}
+              {selectedSlip.status === "draft" && (
+                <button
+                  onClick={() =>
+                    handleFinalize(
+                      selectedSlip.id,
+                      selectedSlip.karyawan?.nama_lengkap,
+                    )
+                  }
+                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Finalize Slip Gaji
+                </button>
+              )}
+            </div>
           </div>
         )}
       </Modal>

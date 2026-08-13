@@ -5,6 +5,7 @@ import KaryawanModel from "../../models/karyawan.model.js";
 import LokasiKantorModel from "../../models/lokasiKantor.model.js";
 import { lokasiDistance } from "../../utils/lokasiDistance.js";
 import { isValidLatitude, isValidLongitude } from "../../utils/validators.js";
+import { analyzeGpsRisk } from "../../utils/fakeGpsDetector.js";
 import { Op } from "sequelize";
 import moment from "moment";
 
@@ -18,7 +19,7 @@ export default class AbsensiController {
   static async absensiMasuk(req, res) {
     try {
       const user_id = req.user.id;
-      const { face_embedding_masuk, latitude_masuk, longitude_masuk } =
+      const { face_embedding_masuk, latitude_masuk, longitude_masuk, accuracy_masuk } =
         req.body;
 
       if (!face_embedding_masuk) {
@@ -199,6 +200,15 @@ export default class AbsensiController {
         statusKehadiran = "terlambat";
       }
 
+      // Analisis Risiko Kecurangan Fake GPS & Network IP
+      const gpsRisk = analyzeGpsRisk({
+        accuracy: accuracy_masuk,
+        validasiLokasi: validasiLokasiMasuk,
+        jarak,
+        radius,
+        req,
+      });
+
       // Simpan Absensi
       const absensi = await AbsensiKaryawanModel.create({
         karyawan_id,
@@ -215,6 +225,11 @@ export default class AbsensiController {
         keterangan: validasiLokasiMasuk
           ? "Tanpa Keterangan"
           : `Absen di luar radius (${parseFloat(jarak.toFixed(2))}m)`,
+        // Anti-Fake GPS & Audit Tracking
+        accuracy_masuk: gpsRisk.accuracyNum,
+        ip_address_masuk: gpsRisk.clientIp,
+        is_suspect_masuk: gpsRisk.isSuspect,
+        suspect_reason_masuk: gpsRisk.suspectReason,
       });
 
       return res.status(201).json({
@@ -241,7 +256,7 @@ export default class AbsensiController {
   static async absensiKeluar(req, res) {
     try {
       const user_id = req.user.id;
-      const { face_embedding_keluar, latitude_keluar, longitude_keluar } =
+      const { face_embedding_keluar, latitude_keluar, longitude_keluar, accuracy_keluar } =
         req.body;
 
       // 1. Validasi Input
@@ -371,6 +386,15 @@ export default class AbsensiController {
       const diffMins = Math.round(((diffMs % 86400000) % 3600000) / 60000); // menit
       const durasiKerja = `${diffHrs} Jam ${diffMins} Menit`;
 
+      // Analisis Risiko Kecurangan Fake GPS & Network IP saat Keluar
+      const gpsRiskKeluar = analyzeGpsRisk({
+        accuracy: accuracy_keluar,
+        validasiLokasi: validasiLokasiKeluar,
+        jarak,
+        radius,
+        req,
+      });
+
       // 8. Lakukan Update ke Database
       // Kita update record yang sudah ditemukan tadi (absensiHariIni)
       absensiHariIni.jam_keluar = jamKeluar;
@@ -379,9 +403,10 @@ export default class AbsensiController {
       absensiHariIni.face_embedding_keluar = face_embedding_keluar;
       absensiHariIni.distance_keluar = distance;
       absensiHariIni.validasi_lokasi_keluar = validasiLokasiKeluar;
-
-      // Jika Anda punya kolom 'durasi', bisa diisi disini. Jika tidak, abaikan.
-      // absensiHariIni.durasi = durasiKerja;
+      absensiHariIni.accuracy_keluar = gpsRiskKeluar.accuracyNum;
+      absensiHariIni.ip_address_keluar = gpsRiskKeluar.clientIp;
+      absensiHariIni.is_suspect_keluar = gpsRiskKeluar.isSuspect;
+      absensiHariIni.suspect_reason_keluar = gpsRiskKeluar.suspectReason;
 
       await absensiHariIni.save(); // Simpan perubahan
 
