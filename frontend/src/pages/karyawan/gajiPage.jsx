@@ -20,6 +20,7 @@ import {
   getSlipGajiSaya,
   getSlipGajiDetail,
 } from "../../services/karyawan/gaji.service";
+import { getLokasi } from "../../services/hrd/addLokasiKantor";
 import {
   exportSlipGajiIndividuPdf,
   exportSlipGajiKaryawanPdf,
@@ -80,6 +81,7 @@ export default function DashboardGajiPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [bulan, setBulan] = useState(new Date().getMonth() + 1);
   const [tahun, setTahun] = useState(new Date().getFullYear());
+  const [namaKantor, setNamaKantor] = useState("PT. SISTEM HRIS SASYA");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -101,6 +103,21 @@ export default function DashboardGajiPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Fetch nama perusahaan kantor
+  useEffect(() => {
+    const fetchLokasiKantor = async () => {
+      try {
+        const res = await getLokasi();
+        if (res && res.data && res.data.nama_perusahaan) {
+          setNamaKantor(res.data.nama_perusahaan);
+        }
+      } catch (err) {
+        console.log("Informasi kantor fallback digunakan");
+      }
+    };
+    fetchLokasiKantor();
+  }, []);
 
   const handleViewDetail = async (slip) => {
     try {
@@ -131,7 +148,7 @@ export default function DashboardGajiPage() {
         slipData,
         bulanNama: namaBulan[bulan - 1],
         tahun,
-        namaKantor: "PT. SISTEM HRIS SASYA",
+        namaKantor,
       });
       toast.success("Berhasil mengunduh slip gaji PDF");
     } catch (err) {
@@ -503,7 +520,7 @@ export default function DashboardGajiPage() {
                     selectedSlip,
                     bulanNama: namaBulan[(selectedSlip.bulan || 1) - 1],
                     tahun: selectedSlip.tahun || tahun,
-                    namaKantor: "PT. SISTEM HRIS SASYA",
+                    namaKantor,
                   });
                   toast.success("Berhasil mengunduh slip gaji PDF");
                 } catch (err) {

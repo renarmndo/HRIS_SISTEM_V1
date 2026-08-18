@@ -1,6 +1,7 @@
 import SlipGajiModel from "../../models/slipGaji.model.js";
 import DetailSlipGajiModel from "../../models/detailSlipGaji.model.js";
 import KomponenGajiModel from "../../models/komponenGaji.model.js";
+import KomponenGajiKaryawanModel from "../../models/komponenGajiKaryawan.model.js";
 import KaryawanModel from "../../models/karyawan.model.js";
 import AbsensiKaryawanModel from "../../models/absensiModel.js";
 import KuotaCutiModel from "../../models/kuotaCutiModel.js";
@@ -47,9 +48,16 @@ export default class SlipGajiController {
         });
       }
 
-      // Ambil komponen gaji aktif
+      // Ambil komponen gaji aktif beserta asignasi karyawan
       const komponenList = await KomponenGajiModel.findAll({
         where: { is_active: true },
+        include: [
+          {
+            model: KomponenGajiKaryawanModel,
+            as: "karyawan_assignments",
+            attributes: ["karyawan_id"],
+          },
+        ],
         transaction,
       });
 
@@ -160,6 +168,14 @@ export default class SlipGajiController {
         const detailItems = [];
 
         for (const komponen of komponenList) {
+          // Cek asignasi: jika komponen punya karyawan spesifik, skip jika bukan salah satunya
+          if (komponen.karyawan_assignments && komponen.karyawan_assignments.length > 0) {
+            const isAssigned = komponen.karyawan_assignments.some(
+              (a) => a.karyawan_id === karyawan.id
+            );
+            if (!isAssigned) continue;
+          }
+
           let nilai = 0;
           const nilaiDefault = parseFloat(komponen.nilai_default) || 0;
 

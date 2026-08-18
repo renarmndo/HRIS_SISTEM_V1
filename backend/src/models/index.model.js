@@ -15,6 +15,7 @@ import PengajuanCutiModel from "./pengajuanCutiModel.js";
 
 // PENGGAJIAN
 import KomponenGajiModel from "./komponenGaji.model.js";
+import KomponenGajiKaryawanModel from "./komponenGajiKaryawan.model.js";
 import SlipGajiModel from "./slipGaji.model.js";
 import DetailSlipGajiModel from "./detailSlipGaji.model.js";
 
@@ -153,6 +154,35 @@ DetailSlipGajiModel.belongsTo(KomponenGajiModel, {
   onUpdate: "CASCADE",
 });
 
+// ─── Relasi Komponen Gaji ↔ Karyawan (Many-to-Many via junction) ──
+KomponenGajiModel.hasMany(KomponenGajiKaryawanModel, {
+  foreignKey: "komponen_gaji_id",
+  as: "karyawan_assignments",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
+KomponenGajiKaryawanModel.belongsTo(KomponenGajiModel, {
+  foreignKey: "komponen_gaji_id",
+  as: "komponen",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
+KaryawanModel.hasMany(KomponenGajiKaryawanModel, {
+  foreignKey: "karyawan_id",
+  as: "komponen_assignments",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
+KomponenGajiKaryawanModel.belongsTo(KaryawanModel, {
+  foreignKey: "karyawan_id",
+  as: "karyawan",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
 // ─── Relasi Lembur ────────────────────────────────────────────
 KaryawanModel.hasMany(LemburModel, {
   foreignKey: "karyawan_id",
@@ -189,6 +219,7 @@ export {
   KuotaCutiModel,
   PengajuanCutiModel,
   KomponenGajiModel,
+  KomponenGajiKaryawanModel,
   SlipGajiModel,
   DetailSlipGajiModel,
   LokasiKantorModel,

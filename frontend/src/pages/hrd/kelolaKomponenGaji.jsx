@@ -9,6 +9,7 @@ import {
   DollarSign,
   TrendingUp,
   TrendingDown,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -17,6 +18,7 @@ import {
   updateKomponenGaji,
   deleteKomponenGaji,
 } from "../../services/hrd/gajiService";
+import { getKaryawan } from "../../services/hrd/addKaryawan";
 import ConfirmationModal from "../../components/ConfirmationModal";
 
 // Modal Component
@@ -26,7 +28,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onClose}></div>
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 z-10">
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 z-10">
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <button
@@ -36,7 +38,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-        <div className="p-4">{children}</div>
+        <div className="p-4 max-h-[80vh] overflow-y-auto">{children}</div>
       </div>
     </div>
   );
@@ -65,7 +67,10 @@ export default function KelolaKomponenGaji() {
     metode: "nominal",
     nilai_default: 0,
     keterangan: "",
+    karyawan_ids: [],
   });
+
+  const [karyawanList, setKaryawanList] = useState([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -85,11 +90,43 @@ export default function KelolaKomponenGaji() {
     fetchData();
   }, [fetchData]);
 
+  // Fetch daftar karyawan untuk dropdown
+  useEffect(() => {
+    const fetchKaryawanList = async () => {
+      try {
+        const res = await getKaryawan();
+        setKaryawanList(res.data || []);
+      } catch (err) {
+        console.log("Gagal mengambil data karyawan");
+      }
+    };
+    fetchKaryawanList();
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: name === "nilai_default" ? parseFloat(value) || 0 : value,
+    }));
+  };
+
+  const handleKaryawanToggle = (karyawanId) => {
+    setFormData((prev) => {
+      const ids = prev.karyawan_ids.includes(karyawanId)
+        ? prev.karyawan_ids.filter((id) => id !== karyawanId)
+        : [...prev.karyawan_ids, karyawanId];
+      return { ...prev, karyawan_ids: ids };
+    });
+  };
+
+  const handleSelectAllKaryawan = () => {
+    setFormData((prev) => ({
+      ...prev,
+      karyawan_ids:
+        prev.karyawan_ids.length === karyawanList.length
+          ? []
+          : karyawanList.map((k) => k.id),
     }));
   };
 
@@ -121,6 +158,8 @@ export default function KelolaKomponenGaji() {
       metode: data.metode,
       nilai_default: parseFloat(data.nilai_default) || 0,
       keterangan: data.keterangan || "",
+      karyawan_ids:
+        data.karyawan_assignments?.map((a) => a.karyawan_id) || [],
     });
     setIsEditMode(true);
     setIsModalOpen(true);
@@ -150,6 +189,7 @@ export default function KelolaKomponenGaji() {
       metode: "nominal",
       nilai_default: 0,
       keterangan: "",
+      karyawan_ids: [],
     });
     setIsEditMode(false);
     setSelectedData(null);
@@ -294,6 +334,26 @@ export default function KelolaKomponenGaji() {
                     {item.keterangan}
                   </p>
                 )}
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <Users className="w-3 h-3" />
+                    {item.karyawan_assignments?.length > 0 ? (
+                      <span>
+                        {item.karyawan_assignments.length} karyawan
+                        {item.karyawan_assignments.length > 1 ? "" : ""}
+                        {": "}
+                        {item.karyawan_assignments
+                          .slice(0, 2)
+                          .map((a) => a.karyawan?.nama_lengkap)
+                          .join(", ")}
+                        {item.karyawan_assignments.length > 2 &&
+                          ` +${item.karyawan_assignments.length - 2} lainnya`}
+                      </span>
+                    ) : (
+                      <span>Semua karyawan</span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ))
@@ -385,6 +445,66 @@ export default function KelolaKomponenGaji() {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500"
               placeholder="Keterangan tambahan..."
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Berlaku Untuk Karyawan
+            </label>
+            <p className="text-xs text-gray-400 mb-2">
+              Kosongkan untuk berlaku untuk semua karyawan
+            </p>
+            <div className="border border-gray-300 rounded-lg max-h-48 overflow-y-auto">
+              <div className="sticky top-0 bg-gray-50 border-b border-gray-200 px-3 py-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={
+                      karyawanList.length > 0 &&
+                      formData.karyawan_ids.length === karyawanList.length
+                    }
+                    onChange={handleSelectAllKaryawan}
+                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Semua Karyawan
+                  </span>
+                </label>
+              </div>
+              {karyawanList.map((k) => (
+                <label
+                  key={k.id}
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0"
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.karyawan_ids.includes(k.id)}
+                    onChange={() => handleKaryawanToggle(k.id)}
+                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <div>
+                    <span className="text-sm text-gray-900">
+                      {k.nama_lengkap}
+                    </span>
+                    {k.jabatan && (
+                      <span className="text-xs text-gray-500 ml-1">
+                        - {k.jabatan}
+                      </span>
+                    )}
+                  </div>
+                </label>
+              ))}
+              {karyawanList.length === 0 && (
+                <p className="text-sm text-gray-400 px-3 py-2">
+                  Tidak ada data karyawan
+                </p>
+              )}
+            </div>
+            {formData.karyawan_ids.length > 0 && (
+              <p className="text-xs text-purple-600 mt-1">
+                Dipilih: {formData.karyawan_ids.length} karyawan
+              </p>
+            )}
           </div>
 
           <div className="flex gap-3 pt-2">

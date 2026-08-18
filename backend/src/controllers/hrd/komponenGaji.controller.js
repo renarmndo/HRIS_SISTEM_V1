@@ -1,4 +1,6 @@
 import KomponenGajiModel from "../../models/komponenGaji.model.js";
+import KomponenGajiKaryawanModel from "../../models/komponenGajiKaryawan.model.js";
+import KaryawanModel from "../../models/karyawan.model.js";
 import { isValidFloat, isValidUUID, isNonEmptyString } from "../../utils/validators.js";
 
 export default class KomponenGajiController {
@@ -13,6 +15,19 @@ export default class KomponenGajiController {
 
       const data = await KomponenGajiModel.findAll({
         where: whereClause,
+        include: [
+          {
+            model: KomponenGajiKaryawanModel,
+            as: "karyawan_assignments",
+            include: [
+              {
+                model: KaryawanModel,
+                as: "karyawan",
+                attributes: ["id", "nama_lengkap", "jabatan"],
+              },
+            ],
+          },
+        ],
         order: [
           ["tipe", "ASC"],
           ["nama", "ASC"],
@@ -42,7 +57,21 @@ export default class KomponenGajiController {
         });
       }
 
-      const data = await KomponenGajiModel.findByPk(id);
+      const data = await KomponenGajiModel.findByPk(id, {
+        include: [
+          {
+            model: KomponenGajiKaryawanModel,
+            as: "karyawan_assignments",
+            include: [
+              {
+                model: KaryawanModel,
+                as: "karyawan",
+                attributes: ["id", "nama_lengkap", "jabatan"],
+              },
+            ],
+          },
+        ],
+      });
 
       if (!data) {
         return res.status(404).json({
@@ -65,7 +94,7 @@ export default class KomponenGajiController {
   // Create komponen gaji
   static async create(req, res) {
     try {
-      const { nama, tipe, metode, nilai_default, keterangan } = req.body;
+      const { nama, tipe, metode, nilai_default, keterangan, karyawan_ids } = req.body;
 
       if (!isNonEmptyString(nama, { minLen: 1, maxLen: 100 })) {
         return res.status(400).json({
@@ -104,6 +133,15 @@ export default class KomponenGajiController {
         is_active: true,
       });
 
+      // Simpan asignasi karyawan jika ada
+      if (Array.isArray(karyawan_ids) && karyawan_ids.length > 0) {
+        const assignments = karyawan_ids.map((kid) => ({
+          komponen_gaji_id: data.id,
+          karyawan_id: kid,
+        }));
+        await KomponenGajiKaryawanModel.bulkCreate(assignments);
+      }
+
       return res.status(201).json({
         msg: "Berhasil menambah komponen gaji",
         data: data,
@@ -120,7 +158,7 @@ export default class KomponenGajiController {
   static async update(req, res) {
     try {
       const { id } = req.params;
-      const { nama, tipe, metode, nilai_default, keterangan, is_active } =
+      const { nama, tipe, metode, nilai_default, keterangan, is_active, karyawan_ids } =
         req.body;
 
       if (!isValidUUID(id)) {
@@ -179,6 +217,20 @@ export default class KomponenGajiController {
         is_active: is_active !== undefined ? is_active : komponen.is_active,
       });
 
+      // Update asignasi karyawan jika dikirim
+      if (Array.isArray(karyawan_ids)) {
+        await KomponenGajiKaryawanModel.destroy({
+          where: { komponen_gaji_id: id },
+        });
+        if (karyawan_ids.length > 0) {
+          const assignments = karyawan_ids.map((kid) => ({
+            komponen_gaji_id: id,
+            karyawan_id: kid,
+          }));
+          await KomponenGajiKaryawanModel.bulkCreate(assignments);
+        }
+      }
+
       return res.status(200).json({
         msg: "Berhasil memperbarui komponen gaji",
         data: komponen,
@@ -210,6 +262,9 @@ export default class KomponenGajiController {
         });
       }
 
+      await KomponenGajiKaryawanModel.destroy({
+        where: { komponen_gaji_id: id },
+      });
       await komponen.destroy();
 
       return res.status(200).json({
