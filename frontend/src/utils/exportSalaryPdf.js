@@ -144,6 +144,154 @@ export const exportRekapGajiPdf = ({
 };
 
 /**
+ * Export Slip Gaji Pribadi Karyawan ke PDF (berdasarkan bulan & tahun yang dipilih)
+ */
+export const exportSlipGajiKaryawanPdf = ({
+  slipData,
+  bulanNama = "",
+  tahun = "",
+  namaKantor = "SISTEM HRIS SASYA",
+}) => {
+  if (!slipData) return;
+
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const todayStr = new Date().toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  // --- KOP SURAT ---
+  doc.setFillColor(16, 185, 129);
+  doc.rect(0, 0, pageWidth, 28, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(namaKantor.toUpperCase(), 14, 13);
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text("SLIP GAJI KARYAWAN", 14, 21);
+
+  doc.setFontSize(9);
+  doc.text(`Periode: ${bulanNama} ${tahun}`, pageWidth - 14, 21, { align: "right" });
+
+  // --- BIODATA KARYAWAN ---
+  doc.setTextColor(31, 41, 55);
+  doc.setFontSize(9.5);
+  doc.setFont("helvetica", "bold");
+  doc.text("INFORMASI KARYAWAN", 14, 36);
+
+  doc.setDrawColor(226, 232, 240);
+  doc.line(14, 38, pageWidth - 14, 38);
+
+  doc.setFont("helvetica", "normal");
+  doc.text(`Nama Lengkap   : ${slipData.karyawan?.nama_lengkap || "-"}`, 14, 45);
+  doc.text(`Jabatan               : ${slipData.karyawan?.jabatan || "-"}`, 14, 51);
+  doc.text(`Departemen       : ${slipData.karyawan?.department || "-"}`, 14, 57);
+
+  doc.text(`Jumlah Hadir       : ${slipData.total_hadir || 0} / ${slipData.total_hari_kerja || 0} Hari`, 110, 45);
+  doc.text(`Jumlah Terlambat : ${slipData.total_terlambat || 0} Kali`, 110, 51);
+  doc.text(`Status Slip          : ${(slipData.status || "draft").toUpperCase()}`, 110, 57);
+
+  // --- TABEL RINCIAN ---
+  const rincianData = [];
+
+  rincianData.push([
+    "Gaji Pokok",
+    "Pendapatan",
+    formatRupiah(slipData.gaji_pokok),
+  ]);
+
+  if (slipData.details && Array.isArray(slipData.details)) {
+    slipData.details
+      .filter((d) => d.tipe === "bonus")
+      .forEach((item) => {
+        rincianData.push([
+          item.nama_komponen,
+          "Pendapatan (Tunjangan/Bonus)",
+          `+${formatRupiah(item.nilai)}`,
+        ]);
+      });
+
+    slipData.details
+      .filter((d) => d.tipe === "potongan")
+      .forEach((item) => {
+        rincianData.push([
+          item.nama_komponen,
+          "Potongan",
+          `-${formatRupiah(item.nilai)}`,
+        ]);
+      });
+  }
+
+  autoTable(doc, {
+    startY: 64,
+    head: [["Komponen Gaji", "Kategori", "Jumlah (IDR)"]],
+    body: rincianData,
+    theme: "grid",
+    headStyles: {
+      fillColor: [16, 185, 129],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 9.5,
+    },
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+    },
+    columnStyles: {
+      0: { cellWidth: 90 },
+      1: { cellWidth: 50 },
+      2: { halign: "right", fontStyle: "bold" },
+    },
+  });
+
+  const finalY = doc.lastAutoTable.finalY + 8;
+
+  // --- SUMMARY BOX ---
+  doc.setFillColor(240, 253, 244);
+  doc.setDrawColor(187, 247, 208);
+  doc.roundedRect(14, finalY, pageWidth - 28, 22, 2, 2, "FD");
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(22, 101, 52);
+  doc.text(`Total Pendapatan : ${formatRupiah(slipData.total_pendapatan)}`, 18, finalY + 7);
+  doc.text(`Total Potongan     : -${formatRupiah(slipData.total_potongan)}`, 18, finalY + 14);
+
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text(`GAJI BERSIH (TAKE HOME PAY) : ${formatRupiah(slipData.gaji_bersih)}`, pageWidth - 20, finalY + 12, { align: "right" });
+
+  // --- SIGNATURE AREA ---
+  const signY = finalY + 35;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+
+  doc.text(`Dicetak Pada: ${todayStr}`, 14, signY);
+  doc.text("Penerima,", 14, signY + 6);
+  doc.text(`( ${slipData.karyawan?.nama_lengkap || "Karyawan"} )`, 14, signY + 26);
+
+  doc.text(`${namaKantor}`, pageWidth - 14, signY + 6, { align: "right" });
+  doc.text("Departemen HRD & Finance", pageWidth - 14, signY + 12, { align: "right" });
+  doc.text("( Tanda Tangan / Stempel Resmi )", pageWidth - 14, signY + 26, { align: "right" });
+
+  // Save File
+  const namaKaryawanClean = (slipData.karyawan?.nama_lengkap || "Karyawan").replace(/\s+/g, "_");
+  const filename = `SlipGaji_${namaKaryawanClean}_${bulanNama}_${tahun}.pdf`;
+  doc.save(filename);
+};
+
+/**
  * Export Slip Gaji Individu Per Karyawan ke PDF
  */
 export const exportSlipGajiIndividuPdf = ({

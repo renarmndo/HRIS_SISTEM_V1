@@ -726,6 +726,11 @@ export default class SlipGajiController {
         where: whereClause,
         include: [
           {
+            model: KaryawanModel,
+            as: "karyawan",
+            attributes: ["id", "nama_lengkap", "jabatan", "department"],
+          },
+          {
             model: DetailSlipGajiModel,
             as: "details",
           },
@@ -771,6 +776,11 @@ export default class SlipGajiController {
           status: "final",
         },
         include: [
+          {
+            model: KaryawanModel,
+            as: "karyawan",
+            attributes: ["id", "nama_lengkap", "jabatan", "department"],
+          },
           {
             model: DetailSlipGajiModel,
             as: "details",

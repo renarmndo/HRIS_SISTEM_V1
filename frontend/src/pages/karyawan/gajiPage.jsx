@@ -13,13 +13,17 @@ import {
   Eye,
   X,
   Printer,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   getSlipGajiSaya,
   getSlipGajiDetail,
 } from "../../services/karyawan/gaji.service";
-import { exportSlipGajiIndividuPdf } from "../../utils/exportSalaryPdf";
+import {
+  exportSlipGajiIndividuPdf,
+  exportSlipGajiKaryawanPdf,
+} from "../../utils/exportSalaryPdf";
 
 // Nama bulan Indonesia
 const namaBulan = [
@@ -74,12 +78,13 @@ export default function DashboardGajiPage() {
   const [slipGajiList, setSlipGajiList] = useState([]);
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [bulan, setBulan] = useState(new Date().getMonth() + 1);
   const [tahun, setTahun] = useState(new Date().getFullYear());
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await getSlipGajiSaya(null, tahun);
+      const response = await getSlipGajiSaya(bulan, tahun);
       setSlipGajiList(response.data || []);
     } catch (error) {
       if (error.response?.status !== 404) {
@@ -91,7 +96,7 @@ export default function DashboardGajiPage() {
     } finally {
       setLoading(false);
     }
-  }, [tahun]);
+  }, [bulan, tahun]);
 
   useEffect(() => {
     fetchData();
@@ -113,6 +118,26 @@ export default function DashboardGajiPage() {
   };
 
   const latestSlip = getLatestSlip();
+
+  // Handler Export PDF Gaji Pribadi
+  const handleExportPdf = () => {
+    if (slipGajiList.length === 0) {
+      toast.error("Tidak ada data slip gaji untuk diexport");
+      return;
+    }
+    try {
+      const slipData = slipGajiList[0];
+      exportSlipGajiKaryawanPdf({
+        slipData,
+        bulanNama: namaBulan[bulan - 1],
+        tahun,
+        namaKantor: "PT. SISTEM HRIS SASYA",
+      });
+      toast.success("Berhasil mengunduh slip gaji PDF");
+    } catch (err) {
+      toast.error("Gagal mengunduh PDF");
+    }
+  };
 
   return (
     <div className="p-4 md:p-6">
@@ -188,25 +213,47 @@ export default function DashboardGajiPage() {
 
       {/* Filter */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-gray-400" />
-            <span className="text-sm font-medium text-gray-600">Tahun:</span>
-          </div>
-          <select
-            value={tahun}
-            onChange={(e) => setTahun(parseInt(e.target.value))}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-          >
-            {[...Array(5)].map((_, i) => {
-              const year = new Date().getFullYear() - 2 + i;
-              return (
-                <option key={year} value={year}>
-                  {year}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Filter className="w-5 h-5 text-gray-400" />
+              <span className="text-sm font-medium text-gray-600">Periode:</span>
+            </div>
+            <select
+              value={bulan}
+              onChange={(e) => setBulan(parseInt(e.target.value))}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            >
+              {namaBulan.map((nama, index) => (
+                <option key={index} value={index + 1}>
+                  {nama}
                 </option>
-              );
-            })}
-          </select>
+              ))}
+            </select>
+            <select
+              value={tahun}
+              onChange={(e) => setTahun(parseInt(e.target.value))}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            >
+              {[...Array(5)].map((_, i) => {
+                const year = new Date().getFullYear() - 2 + i;
+                return (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+          <button
+            onClick={handleExportPdf}
+            disabled={slipGajiList.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50"
+            title="Export Slip Gaji ke PDF"
+          >
+            <Download className="w-4 h-4" />
+            Export PDF
+          </button>
         </div>
       </div>
 
@@ -215,7 +262,7 @@ export default function DashboardGajiPage() {
         <div className="p-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <FileText className="w-5 h-5 text-green-600" />
-            Riwayat Slip Gaji {tahun}
+            Riwayat Slip Gaji - {namaBulan[bulan - 1]} {tahun}
           </h3>
         </div>
 
@@ -267,7 +314,7 @@ export default function DashboardGajiPage() {
                   >
                     <div className="flex flex-col items-center gap-2">
                       <Wallet className="w-10 h-10 text-gray-300" />
-                      <p>Belum ada slip gaji untuk tahun {tahun}</p>
+                      <p>Belum ada slip gaji untuk {namaBulan[bulan - 1]} {tahun}</p>
                     </div>
                   </td>
                 </tr>
