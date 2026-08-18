@@ -14,10 +14,22 @@ KomponenGajiKaryawanModel.init(
     komponen_gaji_id: {
       type: DataTypes.UUID,
       allowNull: false,
+      references: {
+        model: "m_komponen_gaji",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     },
     karyawan_id: {
       type: DataTypes.UUID,
       allowNull: false,
+      references: {
+        model: "m_karyawan",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     },
   },
   {
