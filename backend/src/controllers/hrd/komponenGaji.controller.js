@@ -1,7 +1,18 @@
 import KomponenGajiModel from "../../models/komponenGaji.model.js";
 import KomponenGajiKaryawanModel from "../../models/komponenGajiKaryawan.model.js";
 import KaryawanModel from "../../models/karyawan.model.js";
+import { Op } from "sequelize";
 import { isValidFloat, isValidUUID, isNonEmptyString } from "../../utils/validators.js";
+
+// Helper: filter karyawan_ids yang benar-benar ada di m_karyawan
+async function filterValidKaryawanIds(karyawan_ids) {
+  if (!Array.isArray(karyawan_ids) || karyawan_ids.length === 0) return [];
+  const valid = await KaryawanModel.findAll({
+    where: { id: { [Op.in]: karyawan_ids } },
+    attributes: ["id"],
+  });
+  return valid.map((k) => k.id);
+}
 
 export default class KomponenGajiController {
   // Get semua komponen gaji
@@ -135,11 +146,14 @@ export default class KomponenGajiController {
 
       // Simpan asignasi karyawan jika ada
       if (Array.isArray(karyawan_ids) && karyawan_ids.length > 0) {
-        const assignments = karyawan_ids.map((kid) => ({
-          komponen_gaji_id: data.id,
-          karyawan_id: kid,
-        }));
-        await KomponenGajiKaryawanModel.bulkCreate(assignments);
+        const validIds = await filterValidKaryawanIds(karyawan_ids);
+        if (validIds.length > 0) {
+          const assignments = validIds.map((kid) => ({
+            komponen_gaji_id: data.id,
+            karyawan_id: kid,
+          }));
+          await KomponenGajiKaryawanModel.bulkCreate(assignments);
+        }
       }
 
       return res.status(201).json({
@@ -223,11 +237,14 @@ export default class KomponenGajiController {
           where: { komponen_gaji_id: id },
         });
         if (karyawan_ids.length > 0) {
-          const assignments = karyawan_ids.map((kid) => ({
-            komponen_gaji_id: id,
-            karyawan_id: kid,
-          }));
-          await KomponenGajiKaryawanModel.bulkCreate(assignments);
+          const validIds = await filterValidKaryawanIds(karyawan_ids);
+          if (validIds.length > 0) {
+            const assignments = validIds.map((kid) => ({
+              komponen_gaji_id: id,
+              karyawan_id: kid,
+            }));
+            await KomponenGajiKaryawanModel.bulkCreate(assignments);
+          }
         }
       }
 

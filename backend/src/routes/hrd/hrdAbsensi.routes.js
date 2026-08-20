@@ -21,6 +21,14 @@ router.get(
   HrdAbsensiController.getAbsensiStats
 );
 
+// Get rekap absensi bulanan semua karyawan
+router.get(
+  "/hrd/absensi/rekap-bulanan",
+  authMiddleware,
+  roleMiddleware("hrd"),
+  HrdAbsensiController.getRekapAbsensiBulanan
+);
+
 // Get absensi bulanan karyawan tertentu
 router.get(
   "/hrd/absensi/karyawan/:id",

@@ -38,3 +38,16 @@ export const getAbsensiBulananKaryawan = async (karyawanId, bulan, tahun) => {
   );
   return response.data;
 };
+
+// Get rekap absensi bulanan seluruh karyawan
+export const getRekapAbsensiBulanan = async (bulan, tahun) => {
+  const params = new URLSearchParams();
+  if (bulan) params.append("bulan", bulan);
+  if (tahun) params.append("tahun", tahun);
+  const queryString = params.toString();
+
+  const response = await api.get(
+    `/hrd/absensi/rekap-bulanan${queryString ? `?${queryString}` : ""}`
+  );
+  return response.data;
+};

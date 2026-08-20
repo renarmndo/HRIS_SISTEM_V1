@@ -821,6 +821,12 @@ export default class AbsensiController {
       return res.status(200).json({
         msg: "Berhasil mendapatkan data absensi bulanan",
         data: {
+          karyawan: {
+            id: karyawan.id,
+            nama_lengkap: karyawan.nama_lengkap,
+            jabatan: karyawan.jabatan,
+            department: karyawan.department,
+          },
           bulan: bulanTarget,
           tahun: tahunTarget,
           stats: stats,

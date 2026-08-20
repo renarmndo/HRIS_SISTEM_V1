@@ -10,9 +10,12 @@ import {
   Coffee,
   Briefcase,
   TrendingUp,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getAbsensiBulanan } from "../../services/karyawan/absensi.service";
+import { getLokasi } from "../../services/hrd/addLokasiKantor";
+import { exportRekapAbsensiKaryawanPdf } from "../../utils/exportAttendancePdf";
 
 // Nama bulan Indonesia
 const namaBulan = [
@@ -46,6 +49,22 @@ export default function MasterDataAbsen() {
   const [bulan, setBulan] = useState(new Date().getMonth() + 1);
   const [tahun, setTahun] = useState(new Date().getFullYear());
   const [absensiData, setAbsensiData] = useState(null);
+  const [namaKantor, setNamaKantor] = useState("PT. SISTEM HRIS SASYA");
+
+  // Fetch data profil kantor
+  useEffect(() => {
+    const fetchPerusahaan = async () => {
+      try {
+        const res = await getLokasi();
+        if (res?.data?.nama_perusahaan) {
+          setNamaKantor(res.data.nama_perusahaan);
+        }
+      } catch (e) {
+        console.error("Gagal mengambil nama kantor:", e);
+      }
+    };
+    fetchPerusahaan();
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -63,6 +82,36 @@ export default function MasterDataAbsen() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Handler Export PDF Lembar Rekap Presensi Karyawan
+  const handleExportPdf = () => {
+    try {
+      if (!absensiData?.absensi || absensiData.absensi.length === 0) {
+        toast.error("Tidak ada data presensi pada periode ini untuk diexport");
+        return;
+      }
+
+      const karyawanInfo = absensiData.karyawan || {
+        nama_lengkap: localStorage.getItem("nama_lengkap") || "Karyawan",
+        jabatan: "-",
+        department: "-",
+      };
+
+      exportRekapAbsensiKaryawanPdf({
+        karyawan: karyawanInfo,
+        absensiList: absensiData.absensi || [],
+        stats: absensiData.stats || {},
+        bulanNama: namaBulan[bulan - 1],
+        tahun: tahun,
+        namaKantor,
+      });
+
+      toast.success("Berhasil mengunduh rekap presensi ke PDF");
+    } catch (error) {
+      console.error("Export PDF error:", error);
+      toast.error("Gagal mengunduh PDF: " + error.message);
+    }
+  };
 
   const getStatusBadge = (status) => {
     const badges = {
@@ -139,38 +188,51 @@ export default function MasterDataAbsen() {
           Data Presensi
         </h1>
         <p className="text-gray-500 mt-1">
-          Lihat riwayat presensi Anda per bulan
+          Lihat dan unduh laporan riwayat presensi Anda per bulan
         </p>
       </div>
 
-      {/* Filter */}
+      {/* Filter Toolbar */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-gray-400" />
-            <span className="text-sm font-medium text-gray-600">Filter:</span>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="w-5 h-5 text-gray-400" />
+              <span className="text-sm font-medium text-gray-600">Filter:</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <select
+                value={bulan}
+                onChange={(e) => setBulan(parseInt(e.target.value))}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {namaBulan.map((nama, index) => (
+                  <option key={index} value={index + 1}>
+                    {nama}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="number"
+                value={tahun}
+                onChange={(e) => setTahun(parseInt(e.target.value))}
+                min={2020}
+                max={2030}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <select
-              value={bulan}
-              onChange={(e) => setBulan(parseInt(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {namaBulan.map((nama, index) => (
-                <option key={index} value={index + 1}>
-                  {nama}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              value={tahun}
-              onChange={(e) => setTahun(parseInt(e.target.value))}
-              min={2020}
-              max={2030}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
+
+          {/* Tombol Export PDF */}
+          <button
+            onClick={handleExportPdf}
+            disabled={!absensiData?.absensi || absensiData.absensi.length === 0}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
+            title="Unduh Rekap Presensi Bulanan ke PDF"
+          >
+            <Download className="w-4 h-4" />
+            Export PDF
+          </button>
         </div>
       </div>
 
@@ -257,11 +319,14 @@ export default function MasterDataAbsen() {
 
       {/* Tabel */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-4 border-b border-gray-100">
+        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <FileText className="w-5 h-5 text-blue-600" />
             Riwayat Presensi - {namaBulan[bulan - 1]} {tahun}
           </h3>
+          <span className="text-xs text-gray-500 font-medium">
+            Periode: {namaBulan[bulan - 1]} {tahun}
+          </span>
         </div>
 
         <div className="overflow-x-auto">

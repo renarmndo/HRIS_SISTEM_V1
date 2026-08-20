@@ -17,6 +17,10 @@ import {
   ChevronRight,
   Eye,
   Edit2,
+  Download,
+  FileText,
+  TrendingUp,
+  Percent,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -25,7 +29,13 @@ import {
   createAbsensiManual,
   updateAbsensi,
   getAbsensiBulananKaryawan,
+  getRekapAbsensiBulanan,
 } from "../../services/hrd/absensiHrdService";
+import { getLokasi } from "../../services/hrd/addLokasiKantor";
+import {
+  exportRekapAbsensiBulananHrdPdf,
+  exportRekapAbsensiKaryawanPdf,
+} from "../../utils/exportAttendancePdf";
 import useDebounce from "../../hooks/useDebounce";
 
 // Nama bulan Indonesia
@@ -149,12 +159,15 @@ const StatusBadge = ({ status }) => {
 };
 
 export default function KelolaAbsensiKaryawan() {
+  const [activeTab, setActiveTab] = useState("harian"); // 'harian' | 'bulanan'
+  const [namaKantor, setNamaKantor] = useState("PT. SISTEM HRIS SASYA");
+
+  // ================= HARIAN STATES =================
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0],
+    new Date().toISOString().split("T")[0]
   );
   const [searchTerm, setSearchTerm] = useState("");
-  // FIX (Task 5.15): debounce search 300ms
   const debouncedSearch = useDebounce(searchTerm, 300);
   const [absensiData, setAbsensiData] = useState([]);
   const [stats, setStats] = useState({
@@ -186,15 +199,56 @@ export default function KelolaAbsensiKaryawan() {
     keterangan: "",
   });
 
-  // Detail filter
+  // Detail modal filter
   const [detailBulan, setDetailBulan] = useState(new Date().getMonth() + 1);
   const [detailTahun, setDetailTahun] = useState(new Date().getFullYear());
 
-  // Pagination
+  // Pagination Harian
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const fetchData = useCallback(async () => {
+  // ================= REKAP BULANAN STATES =================
+  const [rekapBulan, setRekapBulan] = useState(new Date().getMonth() + 1);
+  const [rekapTahun, setRekapTahun] = useState(new Date().getFullYear());
+  const [rekapLoading, setRekapLoading] = useState(false);
+  const [rekapSearchTerm, setRekapSearchTerm] = useState("");
+  const debouncedRekapSearch = useDebounce(rekapSearchTerm, 300);
+  const [rekapData, setRekapData] = useState({
+    total_hari_kerja: 0,
+    stats: {
+      total_karyawan: 0,
+      total_hadir: 0,
+      total_terlambat: 0,
+      total_izin: 0,
+      total_sakit: 0,
+      total_cuti: 0,
+      total_tidak_hadir: 0,
+      rata_rata_kehadiran: 0,
+    },
+    list: [],
+  });
+
+  // Pagination Rekap Bulanan
+  const [rekapCurrentPage, setRekapCurrentPage] = useState(1);
+  const [rekapRowsPerPage, setRekapRowsPerPage] = useState(10);
+
+  // Fetch data lokasi perusahaan
+  useEffect(() => {
+    const fetchPerusahaan = async () => {
+      try {
+        const res = await getLokasi();
+        if (res?.data?.nama_perusahaan) {
+          setNamaKantor(res.data.nama_perusahaan);
+        }
+      } catch (e) {
+        console.error("Gagal mengambil nama kantor:", e);
+      }
+    };
+    fetchPerusahaan();
+  }, []);
+
+  // Fetch Absensi Harian
+  const fetchDataHarian = useCallback(async () => {
     setLoading(true);
     try {
       const [absensiRes, statsRes] = await Promise.all([
@@ -212,23 +266,66 @@ export default function KelolaAbsensiKaryawan() {
     }
   }, [selectedDate]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // Fetch Rekap Bulanan
+  const fetchRekapData = useCallback(async () => {
+    setRekapLoading(true);
+    try {
+      const res = await getRekapAbsensiBulanan(rekapBulan, rekapTahun);
+      setRekapData(
+        res.data || {
+          total_hari_kerja: 0,
+          stats: {},
+          list: [],
+        }
+      );
+    } catch (error) {
+      toast.error("Gagal mengambil rekap absensi bulanan");
+      console.error(error);
+    } finally {
+      setRekapLoading(false);
+    }
+  }, [rekapBulan, rekapTahun]);
 
-  // Filter data by search
+  useEffect(() => {
+    if (activeTab === "harian") {
+      fetchDataHarian();
+    } else {
+      fetchRekapData();
+    }
+  }, [activeTab, fetchDataHarian, fetchRekapData]);
+
+  // Filter Harian
   const filteredData = absensiData.filter(
     (item) =>
       item.nama_lengkap?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
       item.jabatan?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      item.department?.toLowerCase().includes(debouncedSearch.toLowerCase()),
+      item.department?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
-  // Pagination
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
   const paginatedData = filteredData.slice(
     (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
+  // Filter Rekap Bulanan
+  const filteredRekapList = (rekapData.list || []).filter(
+    (item) =>
+      item.nama_lengkap
+        ?.toLowerCase()
+        .includes(debouncedRekapSearch.toLowerCase()) ||
+      item.jabatan?.toLowerCase().includes(debouncedRekapSearch.toLowerCase()) ||
+      item.department
+        ?.toLowerCase()
+        .includes(debouncedRekapSearch.toLowerCase())
+  );
+
+  const totalRekapPages = Math.ceil(
+    filteredRekapList.length / rekapRowsPerPage
+  );
+  const paginatedRekapData = filteredRekapList.slice(
+    (rekapCurrentPage - 1) * rekapRowsPerPage,
+    rekapCurrentPage * rekapRowsPerPage
   );
 
   // Handle manual absensi
@@ -243,7 +340,7 @@ export default function KelolaAbsensiKaryawan() {
     setIsManualModalOpen(true);
   };
 
-  // Handle status change untuk clear time fields jika bukan hadir/terlambat
+  // Handle status change
   const handleStatusChange = (newStatus) => {
     if (newStatus === "masuk" || newStatus === "terlambat") {
       setFormData({
@@ -252,7 +349,6 @@ export default function KelolaAbsensiKaryawan() {
         jam_masuk: formData.jam_masuk || "08:00",
       });
     } else {
-      // Untuk status tidak_hadir, izin, sakit, cuti - clear jam
       setFormData({
         ...formData,
         status: newStatus,
@@ -286,7 +382,7 @@ export default function KelolaAbsensiKaryawan() {
       const res = await getAbsensiBulananKaryawan(
         karyawanId,
         detailBulan,
-        detailTahun,
+        detailTahun
       );
       setDetailData(res.data);
     } catch (error) {
@@ -297,7 +393,6 @@ export default function KelolaAbsensiKaryawan() {
   // Submit manual absensi
   const handleSubmitManual = async () => {
     try {
-      // Untuk status tidak_hadir, izin, sakit, cuti - paksa jam jadi null
       const shouldHaveTime =
         formData.status === "masuk" || formData.status === "terlambat";
 
@@ -311,7 +406,7 @@ export default function KelolaAbsensiKaryawan() {
       });
       toast.success("Berhasil mengabsenkan karyawan");
       setIsManualModalOpen(false);
-      fetchData();
+      fetchDataHarian();
     } catch (error) {
       toast.error(error.response?.data?.msg || "Gagal mengabsenkan karyawan");
     }
@@ -328,9 +423,57 @@ export default function KelolaAbsensiKaryawan() {
       });
       toast.success("Berhasil memperbarui absensi");
       setIsEditModalOpen(false);
-      fetchData();
+      fetchDataHarian();
     } catch (error) {
       toast.error(error.response?.data?.msg || "Gagal memperbarui absensi");
+    }
+  };
+
+  // Export Rekap Bulanan Semua Karyawan ke PDF
+  const handleExportRekapPdf = () => {
+    try {
+      if (!rekapData?.list || rekapData.list.length === 0) {
+        toast.error("Tidak ada data rekap absensi untuk diexport");
+        return;
+      }
+
+      exportRekapAbsensiBulananHrdPdf({
+        list: filteredRekapList,
+        bulanNama: namaBulan[rekapBulan - 1],
+        tahun: rekapTahun,
+        totalHariKerja: rekapData.total_hari_kerja || 0,
+        stats: rekapData.stats || {},
+        namaKantor,
+      });
+
+      toast.success("Berhasil mengeksport rekap absensi ke PDF");
+    } catch (error) {
+      console.error("Export Rekap PDF error:", error);
+      toast.error("Gagal mengeksport PDF: " + error.message);
+    }
+  };
+
+  // Export Detail Presensi Karyawan dari Modal ke PDF
+  const handleExportModalDetailPdf = () => {
+    try {
+      if (!detailData?.absensi || detailData.absensi.length === 0) {
+        toast.error("Tidak ada riwayat absensi karyawan untuk diexport");
+        return;
+      }
+
+      exportRekapAbsensiKaryawanPdf({
+        karyawan: selectedKaryawan || detailData.karyawan || {},
+        absensiList: detailData.absensi || [],
+        stats: detailData.stats || {},
+        bulanNama: namaBulan[detailBulan - 1],
+        tahun: detailTahun,
+        namaKantor,
+      });
+
+      toast.success("Berhasil mengunduh lembar presensi karyawan ke PDF");
+    } catch (error) {
+      console.error("Export detail error:", error);
+      toast.error("Gagal mengunduh PDF: " + error.message);
     }
   };
 
@@ -348,302 +491,666 @@ export default function KelolaAbsensiKaryawan() {
   return (
     <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <Calendar className="w-7 h-7 text-blue-600" />
-          Data Absensi Karyawan
-        </h1>
-        <p className="text-gray-500 mt-1">
-          Kelola dan pantau absensi karyawan harian
-        </p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <Calendar className="w-7 h-7 text-blue-600" />
+            Kelola Absensi Karyawan
+          </h1>
+          <p className="text-gray-500 mt-1">
+            Pantau kehadiran harian dan laporan rekapitulasi absensi bulanan karyawan
+          </p>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
+          <button
+            onClick={() => setActiveTab("harian")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+              activeTab === "harian"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            Presensi Harian
+          </button>
+          <button
+            onClick={() => setActiveTab("bulanan")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+              activeTab === "bulanan"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Rekap Bulanan
+          </button>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-        <StatsCard
-          label="Hadir"
-          count={stats.stats?.hadir || 0}
-          icon={CheckCircle}
-          color="green"
-        />
-        <StatsCard
-          label="Terlambat"
-          count={stats.stats?.terlambat || 0}
-          icon={Clock}
-          color="purple"
-        />
-        <StatsCard
-          label="Tidak Hadir"
-          count={stats.belum_absen || 0}
-          icon={UserX}
-          color="red"
-        />
-        <StatsCard
-          label="Izin"
-          count={stats.stats?.izin || 0}
-          icon={Briefcase}
-          color="blue"
-        />
-        <StatsCard
-          label="Sakit"
-          count={stats.stats?.sakit || 0}
-          icon={AlertCircle}
-          color="orange"
-        />
-        <StatsCard
-          label="Cuti"
-          count={stats.stats?.cuti || 0}
-          icon={Coffee}
-          color="cyan"
-        />
-      </div>
-
-      {/* Toolbar */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-            {/* Date Picker */}
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-gray-400" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div className="text-sm text-gray-600 flex items-center">
-              <span className="font-medium">
-                {formatDisplayDate(selectedDate)}
-              </span>
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-2.5 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Cari nama, jabatan, departemen..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      {/* ================= TAB 1: PRESENSI HARIAN ================= */}
+      {activeTab === "harian" && (
+        <>
+          {/* Stats Cards Harian */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+            <StatsCard
+              label="Hadir"
+              count={stats.stats?.hadir || 0}
+              icon={CheckCircle}
+              color="green"
+            />
+            <StatsCard
+              label="Terlambat"
+              count={stats.stats?.terlambat || 0}
+              icon={Clock}
+              color="purple"
+            />
+            <StatsCard
+              label="Tidak Hadir"
+              count={stats.belum_absen || 0}
+              icon={UserX}
+              color="red"
+            />
+            <StatsCard
+              label="Izin"
+              count={stats.stats?.izin || 0}
+              icon={Briefcase}
+              color="blue"
+            />
+            <StatsCard
+              label="Sakit"
+              count={stats.stats?.sakit || 0}
+              icon={AlertCircle}
+              color="orange"
+            />
+            <StatsCard
+              label="Cuti"
+              count={stats.stats?.cuti || 0}
+              icon={Coffee}
+              color="cyan"
             />
           </div>
-        </div>
-      </div>
 
-      {/* Info Alert */}
-      <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3 mb-6 text-sm text-slate-700">
-        <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-        <p>
-          Karyawan yang belum absen akan muncul dengan status kosong. Anda dapat
-          mengabsenkan manual atau mengubah status absensi yang sudah ada.
-        </p>
-      </div>
+          {/* Toolbar Harian */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                {/* Date Picker */}
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-gray-400" />
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="text-sm text-gray-600 flex items-center">
+                  <span className="font-medium">
+                    {formatDisplayDate(selectedDate)}
+                  </span>
+                </div>
+              </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                  No
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                  Karyawan
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                  Departemen
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                  Jam Masuk
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                  Jam Keluar
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                  Keterangan
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
-                  Aksi
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan="8"
-                    className="px-4 py-8 text-center text-gray-500"
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                      Loading...
-                    </div>
-                  </td>
-                </tr>
-              ) : paginatedData.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan="8"
-                    className="px-4 py-8 text-center text-gray-500"
-                  >
-                    Tidak ada data karyawan
-                  </td>
-                </tr>
-              ) : (
-                paginatedData.map((item, index) => (
-                  <tr key={item.karyawan_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {(currentPage - 1) * rowsPerPage + index + 1}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
-                          {item.nama_lengkap?.charAt(0).toUpperCase() || "?"}
+              {/* Search */}
+              <div className="relative w-full md:w-80">
+                <Search className="absolute left-3 top-2.5 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Cari nama, jabatan, departemen..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Info Alert */}
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3 mb-6 text-sm text-slate-700">
+            <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+            <p>
+              Karyawan yang belum absen akan muncul dengan status kosong. Anda
+              dapat mengabsenkan manual atau mengubah status absensi yang sudah ada.
+            </p>
+          </div>
+
+          {/* Table Harian */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                      No
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                      Karyawan
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                      Departemen
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                      Jam Masuk
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                      Jam Keluar
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                      Keterangan
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
+                      Aksi
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan="8"
+                        className="px-4 py-8 text-center text-gray-500"
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                          Loading...
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {item.nama_lengkap}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {item.jabatan}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {item.department || "-"}
-                    </td>
-                    <td className="px-4 py-3">
-                      {item.absensi?.jam_masuk ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-green-50 text-green-700 border-l-2 border-green-500">
-                          {item.absensi.jam_masuk.slice(0, 5)}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-sm">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {item.absensi?.jam_keluar ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-blue-50 text-blue-700 border-l-2 border-blue-500">
-                          {item.absensi.jam_keluar.slice(0, 5)}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-sm">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {item.absensi ? (
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <StatusBadge status={item.absensi.status} />
-                            {item.absensi.is_manual && (
-                              <span className="text-xs text-gray-400">
-                                (Manual)
-                              </span>
-                            )}
+                      </td>
+                    </tr>
+                  ) : paginatedData.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="8"
+                        className="px-4 py-8 text-center text-gray-500"
+                      >
+                        Tidak ada data karyawan
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedData.map((item, index) => (
+                      <tr key={item.karyawan_id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {(currentPage - 1) * rowsPerPage + index + 1}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
+                              {item.nama_lengkap?.charAt(0).toUpperCase() || "?"}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {item.nama_lengkap}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {item.jabatan}
+                              </p>
+                            </div>
                           </div>
-                          {(item.absensi.is_suspect_masuk || item.absensi.is_suspect_keluar) && (
-                            <span
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 cursor-help"
-                              title={`[Alasan Suspect]: ${item.absensi.suspect_reason_masuk || item.absensi.suspect_reason_keluar || "Indikasi lokasi/akurasi abnormal"}`}
-                            >
-                              <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
-                              Indikasi Fake GPS
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {item.department || "-"}
+                        </td>
+                        <td className="px-4 py-3">
+                          {item.absensi?.jam_masuk ? (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-green-50 text-green-700 border-l-2 border-green-500">
+                              {item.absensi.jam_masuk.slice(0, 5)}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {item.absensi?.jam_keluar ? (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-blue-50 text-blue-700 border-l-2 border-blue-500">
+                              {item.absensi.jam_keluar.slice(0, 5)}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {item.absensi ? (
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2">
+                                <StatusBadge status={item.absensi.status} />
+                                {item.absensi.is_manual && (
+                                  <span className="text-xs text-gray-400">
+                                    (Manual)
+                                  </span>
+                                )}
+                              </div>
+                              {(item.absensi.is_suspect_masuk ||
+                                item.absensi.is_suspect_keluar) && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 cursor-help"
+                                  title={`[Alasan Suspect]: ${
+                                    item.absensi.suspect_reason_masuk ||
+                                    item.absensi.suspect_reason_keluar ||
+                                    "Indikasi lokasi/akurasi abnormal"
+                                  }`}
+                                >
+                                  <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                                  Indikasi Fake GPS
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                              Belum Absen
                             </span>
                           )}
-                        </div>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                          Belum Absen
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[150px] truncate">
-                      {item.absensi?.keterangan || "-"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleViewDetail(item)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Lihat Detail Bulanan"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        {item.absensi ? (
-                          <button
-                            onClick={() => handleOpenEditModal(item)}
-                            className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                            title="Edit Absensi"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleOpenManualModal(item)}
-                            className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
-                            title="Absenkan Manual"
-                          >
-                            <UserCheck className="w-3.5 h-3.5" />
-                            Absenkan
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 max-w-[150px] truncate">
+                          {item.absensi?.keterangan || "-"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleViewDetail(item)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Lihat Detail Bulanan"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            {item.absensi ? (
+                              <button
+                                onClick={() => handleOpenEditModal(item)}
+                                className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                title="Edit Absensi"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleOpenManualModal(item)}
+                                className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
+                                title="Absenkan Manual"
+                              >
+                                <UserCheck className="w-3.5 h-3.5" />
+                                Absenkan
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-        {/* Pagination */}
-        <div className="p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-gray-600">
-          <div className="flex items-center gap-2">
-            <span>Rows per page:</span>
-            <select
-              value={rowsPerPage}
-              onChange={(e) => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="border border-gray-300 rounded px-2 py-1 text-sm"
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-            </select>
+            {/* Pagination Harian */}
+            <div className="p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-2">
+                <span>Rows per page:</span>
+                <select
+                  value={rowsPerPage}
+                  onChange={(e) => {
+                    setRowsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                </select>
+              </div>
+              <div>
+                {(currentPage - 1) * rowsPerPage + 1}-
+                {Math.min(currentPage * rowsPerPage, filteredData.length)} of{" "}
+                {filteredData.length}
+              </div>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1.5 hover:bg-gray-100 rounded disabled:opacity-50"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 hover:bg-gray-100 rounded disabled:opacity-50"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
           </div>
-          <div>
-            {(currentPage - 1) * rowsPerPage + 1}-
-            {Math.min(currentPage * rowsPerPage, filteredData.length)} of{" "}
-            {filteredData.length}
+        </>
+      )}
+
+      {/* ================= TAB 2: REKAP BULANAN ================= */}
+      {activeTab === "bulanan" && (
+        <>
+          {/* Stats Cards Rekap Bulanan */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+            <StatsCard
+              label="Karyawan"
+              count={rekapData.stats?.total_karyawan || 0}
+              icon={Users}
+              color="blue"
+            />
+            <StatsCard
+              label="Hadir"
+              count={rekapData.stats?.total_hadir || 0}
+              icon={CheckCircle}
+              color="green"
+            />
+            <StatsCard
+              label="Terlambat"
+              count={rekapData.stats?.total_terlambat || 0}
+              icon={Clock}
+              color="purple"
+            />
+            <StatsCard
+              label="Izin"
+              count={rekapData.stats?.total_izin || 0}
+              icon={Briefcase}
+              color="blue"
+            />
+            <StatsCard
+              label="Sakit"
+              count={rekapData.stats?.total_sakit || 0}
+              icon={AlertCircle}
+              color="orange"
+            />
+            <StatsCard
+              label="Cuti"
+              count={rekapData.stats?.total_cuti || 0}
+              icon={Coffee}
+              color="cyan"
+            />
+            <StatsCard
+              label="Alpa"
+              count={rekapData.stats?.total_tidak_hadir || 0}
+              icon={UserX}
+              color="red"
+            />
           </div>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="p-1.5 hover:bg-gray-100 rounded disabled:opacity-50"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="p-1.5 hover:bg-gray-100 rounded disabled:opacity-50"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+
+          {/* Toolbar Rekap Bulanan */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+            <div className="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Filter Bulan */}
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-gray-500" />
+                  <select
+                    value={rekapBulan}
+                    onChange={(e) => setRekapBulan(Number(e.target.value))}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    {namaBulan.map((nama, idx) => (
+                      <option key={idx} value={idx + 1}>
+                        {nama}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Filter Tahun */}
+                <div>
+                  <select
+                    value={rekapTahun}
+                    onChange={(e) => setRekapTahun(Number(e.target.value))}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    {[...Array(5)].map((_, i) => {
+                      const year = new Date().getFullYear() - 2 + i;
+                      return (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                <div className="text-xs bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg font-medium border border-emerald-200 flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4" />
+                  Rata-rata Kehadiran:{" "}
+                  <strong>
+                    {rekapData.stats?.rata_rata_kehadiran || 0}%
+                  </strong>{" "}
+                  ({rekapData.total_hari_kerja || 0} Hari Kerja)
+                </div>
+              </div>
+
+              {/* Search & Export Button */}
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1 sm:w-64">
+                  <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Cari nama / divisi..."
+                    value={rekapSearchTerm}
+                    onChange={(e) => setRekapSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <button
+                  onClick={handleExportRekapPdf}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-all flex items-center gap-2 shrink-0"
+                  title="Export Rekapitulasi Presensi Bulanan ke PDF"
+                >
+                  <Download className="w-4 h-4" />
+                  Export PDF
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+
+          {/* Table Rekap Bulanan */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                      No
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                      Karyawan
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                      Departemen
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
+                      Hadir
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
+                      Telat
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
+                      Izin
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
+                      Sakit
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
+                      Cuti
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
+                      Alpa
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
+                      Total Masuk
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
+                      % Kehadiran
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">
+                      Aksi
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {rekapLoading ? (
+                    <tr>
+                      <td
+                        colSpan="12"
+                        className="px-4 py-8 text-center text-gray-500"
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                          Memuat rekap absensi...
+                        </div>
+                      </td>
+                    </tr>
+                  ) : paginatedRekapData.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="12"
+                        className="px-4 py-8 text-center text-gray-500"
+                      >
+                        Tidak ada data rekap absensi pada periode ini
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedRekapData.map((item, index) => (
+                      <tr key={item.karyawan_id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {(rekapCurrentPage - 1) * rekapRowsPerPage +
+                            index +
+                            1}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm">
+                              {item.nama_lengkap?.charAt(0).toUpperCase() ||
+                                "?"}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {item.nama_lengkap}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {item.jabatan}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {item.department || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm font-medium text-green-600">
+                          {item.hadir}
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm font-medium text-purple-600">
+                          {item.terlambat}
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm font-medium text-blue-600">
+                          {item.izin}
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm font-medium text-orange-600">
+                          {item.sakit}
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm font-medium text-cyan-600">
+                          {item.cuti}
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm font-medium text-red-600">
+                          {item.tidak_hadir}
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">
+                          {item.total_kehadiran} Hari
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              item.persentase_kehadiran >= 85
+                                ? "bg-green-100 text-green-800"
+                                : item.persentase_kehadiran >= 70
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {item.persentase_kehadiran}%
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => {
+                              setDetailBulan(rekapBulan);
+                              setDetailTahun(rekapTahun);
+                              handleViewDetail(item);
+                            }}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Lihat Detail Presensi Bulanan"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Rekap Bulanan */}
+            <div className="p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-2">
+                <span>Rows per page:</span>
+                <select
+                  value={rekapRowsPerPage}
+                  onChange={(e) => {
+                    setRekapRowsPerPage(Number(e.target.value));
+                    setRekapCurrentPage(1);
+                  }}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                </select>
+              </div>
+              <div>
+                {(rekapCurrentPage - 1) * rekapRowsPerPage + 1}-
+                {Math.min(
+                  rekapCurrentPage * rekapRowsPerPage,
+                  filteredRekapList.length
+                )}{" "}
+                of {filteredRekapList.length}
+              </div>
+              <div className="flex gap-1">
+                <button
+                  onClick={() =>
+                    setRekapCurrentPage((p) => Math.max(1, p - 1))
+                  }
+                  disabled={rekapCurrentPage === 1}
+                  className="p-1.5 hover:bg-gray-100 rounded disabled:opacity-50"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() =>
+                    setRekapCurrentPage((p) =>
+                      Math.min(totalRekapPages, p + 1)
+                    )
+                  }
+                  disabled={
+                    rekapCurrentPage === totalRekapPages ||
+                    totalRekapPages === 0
+                  }
+                  className="p-1.5 hover:bg-gray-100 rounded disabled:opacity-50"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Modal Absensi Manual */}
       <Modal
@@ -874,13 +1381,24 @@ export default function KelolaAbsensiKaryawan() {
       >
         <div className="space-y-4">
           {selectedKaryawan && (
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <p className="text-sm font-medium text-gray-900">
-                {selectedKaryawan.nama_lengkap}
-              </p>
-              <p className="text-xs text-gray-500">
-                {selectedKaryawan.jabatan} - {selectedKaryawan.department}
-              </p>
+            <div className="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-gray-900">
+                  {selectedKaryawan.nama_lengkap}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {selectedKaryawan.jabatan} - {selectedKaryawan.department}
+                </p>
+              </div>
+              <button
+                onClick={handleExportModalDetailPdf}
+                disabled={!detailData?.absensi || detailData.absensi.length === 0}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-sm transition-all flex items-center gap-1.5"
+                title="Cetak Rekap Presensi Karyawan ini ke PDF"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Cetak PDF
+              </button>
             </div>
           )}
 
@@ -889,9 +1407,14 @@ export default function KelolaAbsensiKaryawan() {
             <select
               value={detailBulan}
               onChange={(e) => {
-                setDetailBulan(Number(e.target.value));
+                const b = Number(e.target.value);
+                setDetailBulan(b);
                 if (selectedKaryawan) {
-                  fetchDetailData(selectedKaryawan.karyawan_id);
+                  getAbsensiBulananKaryawan(
+                    selectedKaryawan.karyawan_id,
+                    b,
+                    detailTahun
+                  ).then((res) => setDetailData(res.data));
                 }
               }}
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
@@ -905,9 +1428,14 @@ export default function KelolaAbsensiKaryawan() {
             <select
               value={detailTahun}
               onChange={(e) => {
-                setDetailTahun(Number(e.target.value));
+                const y = Number(e.target.value);
+                setDetailTahun(y);
                 if (selectedKaryawan) {
-                  fetchDetailData(selectedKaryawan.karyawan_id);
+                  getAbsensiBulananKaryawan(
+                    selectedKaryawan.karyawan_id,
+                    detailBulan,
+                    y
+                  ).then((res) => setDetailData(res.data));
                 }
               }}
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm"

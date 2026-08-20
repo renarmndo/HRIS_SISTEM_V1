@@ -427,6 +427,161 @@ export default class HrdAbsensiController {
       });
     }
   }
+
+  /**
+   * Get rekap absensi bulanan untuk seluruh karyawan
+   */
+  static async getRekapAbsensiBulanan(req, res) {
+    try {
+      const { bulan, tahun } = req.query;
+
+      const bulanTarget = bulan ? parseInt(bulan) : new Date().getMonth() + 1;
+      const tahunTarget = tahun ? parseInt(tahun) : new Date().getFullYear();
+
+      if (bulanTarget < 1 || bulanTarget > 12) {
+        return res.status(400).json({
+          msg: "Bulan harus antara 1-12",
+        });
+      }
+
+      // Hitung tanggal awal dan akhir bulan
+      const startOfMonth = new Date(tahunTarget, bulanTarget - 1, 1);
+      const endOfMonth = new Date(tahunTarget, bulanTarget, 0);
+      const startDate = formatLocalDate(startOfMonth);
+      const endDate = formatLocalDate(endOfMonth);
+
+      // Hitung total hari kerja (Senin - Jumat) dalam bulan
+      let totalHariKerja = 0;
+      const curDate = new Date(tahunTarget, bulanTarget - 1, 1);
+      while (curDate <= endOfMonth) {
+        const day = curDate.getDay();
+        if (day !== 0 && day !== 6) {
+          totalHariKerja++;
+        }
+        curDate.setDate(curDate.getDate() + 1);
+      }
+
+      // Ambil seluruh karyawan aktif
+      const karyawanList = await KaryawanModel.findAll({
+        where: { is_active: true },
+        include: [
+          {
+            model: UsersModel,
+            as: "user",
+            attributes: ["id", "email"],
+          },
+        ],
+        order: [["nama_lengkap", "ASC"]],
+      });
+
+      // Ambil semua data absensi pada rentang bulan tersebut
+      const absensiList = await AbsensiKaryawanModel.findAll({
+        where: {
+          tanggal: {
+            [Op.between]: [startDate, endDate],
+          },
+        },
+      });
+
+      // Group absensi berdasarkan karyawan_id
+      const absensiMap = {};
+      absensiList.forEach((absen) => {
+        if (!absensiMap[absen.karyawan_id]) {
+          absensiMap[absen.karyawan_id] = [];
+        }
+        absensiMap[absen.karyawan_id].push(absen);
+      });
+
+      // Stats agregat perusahaan
+      const statsAgregat = {
+        total_karyawan: karyawanList.length,
+        total_hadir: 0,
+        total_terlambat: 0,
+        total_izin: 0,
+        total_sakit: 0,
+        total_cuti: 0,
+        total_tidak_hadir: 0,
+      };
+
+      // Rekap per karyawan
+      const list = karyawanList.map((karyawan) => {
+        const logs = absensiMap[karyawan.id] || [];
+
+        let hadir = 0;
+        let terlambat = 0;
+        let izin = 0;
+        let sakit = 0;
+        let cuti = 0;
+        let tidak_hadir = 0;
+
+        logs.forEach((item) => {
+          if (item.status === "masuk") hadir++;
+          else if (item.status === "terlambat") terlambat++;
+          else if (item.status === "izin") izin++;
+          else if (item.status === "sakit") sakit++;
+          else if (item.status === "cuti") cuti++;
+          else if (item.status === "tidak_hadir") tidak_hadir++;
+        });
+
+        // Akumulasi ke stats perusahaan
+        statsAgregat.total_hadir += hadir;
+        statsAgregat.total_terlambat += terlambat;
+        statsAgregat.total_izin += izin;
+        statsAgregat.total_sakit += sakit;
+        statsAgregat.total_cuti += cuti;
+        statsAgregat.total_tidak_hadir += tidak_hadir;
+
+        const total_kehadiran = hadir + terlambat;
+        const persentase_kehadiran =
+          totalHariKerja > 0
+            ? Math.min(100, Math.round((total_kehadiran / totalHariKerja) * 100))
+            : 0;
+
+        return {
+          karyawan_id: karyawan.id,
+          nama_lengkap: karyawan.nama_lengkap,
+          jabatan: karyawan.jabatan,
+          department: karyawan.department,
+          email: karyawan.user?.email,
+          hadir,
+          terlambat,
+          izin,
+          sakit,
+          cuti,
+          tidak_hadir,
+          total_kehadiran,
+          persentase_kehadiran,
+        };
+      });
+
+      const totalPersen = list.reduce(
+        (acc, curr) => acc + curr.persentase_kehadiran,
+        0
+      );
+      const rataRataKehadiran =
+        list.length > 0 ? Math.round(totalPersen / list.length) : 0;
+
+      return res.status(200).json({
+        msg: "Berhasil mendapatkan rekap absensi bulanan",
+        data: {
+          bulan: bulanTarget,
+          tahun: tahunTarget,
+          total_hari_kerja: totalHariKerja,
+          stats: {
+            ...statsAgregat,
+            rata_rata_kehadiran: rataRataKehadiran,
+          },
+          list,
+        },
+      });
+    } catch (error) {
+      console.error("Error getRekapAbsensiBulanan:", error);
+      return res.status(500).json({
+        msg: "Terjadi kesalahan pada server",
+        error: error.message,
+      });
+    }
+  }
 }
 
 // FIX (Task 3.21): helper format YYYY-MM-DD lokal

@@ -10,7 +10,7 @@ const port = process.env.PORT || 5000;
 async function startServer() {
   try {
     try {
-      await sequelize.sync({ alter: true });
+      await sequelize.sync({ alter: false });
       await ensureFakeGpsColumns();
       await ensureKomponenGajiKaryawanTable();
       console.log("Database table berhasil disinkronisasi");
